@@ -1,0 +1,396 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Settings — SHOBHA MEDICAL STORES Admin</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" rel="stylesheet">
+  <link href="../style.css" rel="stylesheet">
+</head>
+<body>
+
+  <aside class="admin-sidebar" id="adminSidebar">
+    <div class="sidebar-brand">
+      <h4><i class="fas fa-clinic-medical me-2" style="color:var(--primary-400);"></i>SHOBHA</h4>
+      <span>Medical Stores — Admin</span>
+    </div>
+    <ul class="sidebar-nav">
+      <li class="nav-item"><a class="nav-link" href="dashboard.html"><i class="fas fa-tachometer-alt"></i> Dashboard</a></li>
+      <li class="nav-item"><a class="nav-link" href="products.html"><i class="fas fa-pills"></i> Products</a></li>
+      <li class="nav-item"><a class="nav-link" href="orders.html"><i class="fas fa-clipboard-list"></i> Orders</a></li>
+      <li class="nav-item"><a class="nav-link active" href="settings.html"><i class="fas fa-cog"></i> Settings</a></li>
+      <li class="nav-item" style="margin-top:2rem;"><a class="nav-link" href="../index.html"><i class="fas fa-store"></i> View Store</a></li>
+      <li class="nav-item"><a class="nav-link text-danger" href="#" onclick="Auth.logout()"><i class="fas fa-sign-out-alt"></i> Logout</a></li>
+    </ul>
+  </aside>
+
+  <main class="admin-main">
+    <div class="admin-topbar">
+      <div>
+        <button class="btn btn-sm d-lg-none me-2" onclick="document.getElementById('adminSidebar').classList.toggle('show')">
+          <i class="fas fa-bars"></i>
+        </button>
+        <h2>Settings</h2>
+      </div>
+    </div>
+
+    <div class="row g-4">
+      <!-- Shop Information -->
+      <div class="col-lg-8">
+        <div class="kpi-card mb-4">
+          <h5 class="mb-3"><i class="fas fa-store me-2 text-gradient"></i>Shop Information</h5>
+          <form onsubmit="saveShopInfo(event)">
+            <div class="row g-3">
+              <div class="col-md-6">
+                <label class="form-label-custom">Shop Name</label>
+                <input type="text" class="form-control-custom" id="setShopName">
+              </div>
+              <div class="col-md-6">
+                <label class="form-label-custom">Tagline</label>
+                <input type="text" class="form-control-custom" id="setTagline">
+              </div>
+              <div class="col-md-6">
+                <label class="form-label-custom">Phone</label>
+                <input type="tel" class="form-control-custom" id="setPhone">
+              </div>
+              <div class="col-md-6">
+                <label class="form-label-custom">Email</label>
+                <input type="email" class="form-control-custom" id="setEmail">
+              </div>
+              <div class="col-12">
+                <label class="form-label-custom">Address</label>
+                <textarea class="form-control-custom" id="setAddress" rows="2"></textarea>
+              </div>
+              <div class="col-md-6">
+                <label class="form-label-custom">GST Number</label>
+                <input type="text" class="form-control-custom" id="setGstNumber">
+              </div>
+              <div class="col-md-6">
+                <label class="form-label-custom">Working Hours</label>
+                <input type="text" class="form-control-custom" id="setHours">
+              </div>
+            </div>
+            <button type="submit" class="btn-primary-custom mt-3"><i class="fas fa-save me-1"></i> Save Shop Info</button>
+          </form>
+        </div>
+
+        <!-- Tax & Delivery -->
+        <div class="kpi-card mb-4">
+          <h5 class="mb-3"><i class="fas fa-calculator me-2 text-gradient"></i>Tax & Delivery Settings</h5>
+          <form onsubmit="saveTaxSettings(event)">
+            <div class="row g-3">
+              <div class="col-md-4">
+                <label class="form-label-custom">GST Rate (%)</label>
+                <input type="number" class="form-control-custom" id="setGstRate" min="0" max="50" step="0.5">
+              </div>
+              <div class="col-md-4">
+                <label class="form-label-custom">Delivery Charge (₹)</label>
+                <input type="number" class="form-control-custom" id="setDeliveryCharge" min="0">
+              </div>
+              <div class="col-md-4">
+                <label class="form-label-custom">Free Delivery Above (₹)</label>
+                <input type="number" class="form-control-custom" id="setFreeDelivery" min="0">
+              </div>
+            </div>
+            <button type="submit" class="btn-primary-custom mt-3"><i class="fas fa-save me-1"></i> Save Tax Settings</button>
+          </form>
+        </div>
+
+        <!-- Stock Settings -->
+        <div class="kpi-card mb-4">
+          <h5 class="mb-3"><i class="fas fa-boxes me-2 text-gradient"></i>Stock Settings</h5>
+          <form onsubmit="saveStockSettings(event)">
+            <div class="row g-3">
+              <div class="col-md-6">
+                <label class="form-label-custom">Low Stock Alert Threshold</label>
+                <input type="number" class="form-control-custom" id="setLowStockThreshold" min="1">
+                <small class="text-muted">Products with stock below this number will show alerts.</small>
+              </div>
+            </div>
+            <button type="submit" class="btn-primary-custom mt-3"><i class="fas fa-save me-1"></i> Save Stock Settings</button>
+          </form>
+        </div>
+
+        <!-- Admin User Management -->
+        <div class="kpi-card">
+          <div class="d-flex justify-content-between align-items-center mb-3">
+            <h5 class="mb-0"><i class="fas fa-users-cog me-2 text-gradient"></i>Admin Users</h5>
+            <button class="btn-primary-custom btn-sm-custom" onclick="showAddAdminModal()">
+              <i class="fas fa-user-plus me-1"></i> Add Admin
+            </button>
+          </div>
+          <div class="table-container">
+            <table class="table mb-0">
+              <thead>
+                <tr>
+                  <th>Name</th>
+                  <th>Email</th>
+                  <th>Role</th>
+                  <th>Created</th>
+                  <th>Actions</th>
+                </tr>
+              </thead>
+              <tbody id="adminUsersBody">
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <!-- Sidebar -->
+      <div class="col-lg-4">
+        <!-- Payment Methods -->
+        <div class="kpi-card mb-4">
+          <h5 class="mb-3"><i class="fas fa-credit-card me-2 text-gradient"></i>Payment Methods</h5>
+          <div class="d-flex flex-column gap-3">
+            <label class="d-flex align-items-center justify-content-between">
+              <span><i class="fas fa-money-bill-wave me-2 text-success"></i>Cash on Delivery</span>
+              <div class="form-check form-switch"><input type="checkbox" class="form-check-input" id="payCod" onchange="savePaymentMethods()"></div>
+            </label>
+            <label class="d-flex align-items-center justify-content-between">
+              <span><i class="fas fa-mobile-alt me-2 text-primary"></i>UPI Payment</span>
+              <div class="form-check form-switch"><input type="checkbox" class="form-check-input" id="payUpi" onchange="savePaymentMethods()"></div>
+            </label>
+            <label class="d-flex align-items-center justify-content-between">
+              <span><i class="fas fa-credit-card me-2 text-info"></i>Card Payment</span>
+              <div class="form-check form-switch"><input type="checkbox" class="form-check-input" id="payCard" onchange="savePaymentMethods()"></div>
+            </label>
+            <label class="d-flex align-items-center justify-content-between">
+              <span><i class="fas fa-university me-2 text-warning"></i>Net Banking</span>
+              <div class="form-check form-switch"><input type="checkbox" class="form-check-input" id="payNetbanking" onchange="savePaymentMethods()"></div>
+            </label>
+          </div>
+        </div>
+
+        <!-- Data Management -->
+        <div class="kpi-card mb-4">
+          <h5 class="mb-3"><i class="fas fa-database me-2 text-gradient"></i>Data Management</h5>
+          <div class="d-grid gap-2">
+            <button class="btn-outline-custom btn-sm-custom justify-content-center" onclick="exportData()">
+              <i class="fas fa-download me-1"></i> Export All Data (JSON)
+            </button>
+            <button class="btn btn-sm btn-outline-danger" onclick="resetData()">
+              <i class="fas fa-undo me-1"></i> Reset to Default Data
+            </button>
+          </div>
+        </div>
+
+        <!-- Stock History -->
+        <div class="kpi-card">
+          <h5 class="mb-3"><i class="fas fa-history me-2 text-gradient"></i>Recent Stock Changes</h5>
+          <div id="stockHistory" style="max-height:300px;overflow-y:auto;">
+          </div>
+        </div>
+      </div>
+    </div>
+  </main>
+
+  <!-- Add Admin Modal -->
+  <div class="modal fade" id="addAdminModal" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h5 class="modal-title"><i class="fas fa-user-plus me-2"></i>Add Admin User</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+        </div>
+        <div class="modal-body">
+          <form id="addAdminForm" onsubmit="createAdmin(event)">
+            <div class="mb-3">
+              <label class="form-label-custom">Name</label>
+              <input type="text" class="form-control-custom" id="newAdminName" required>
+            </div>
+            <div class="mb-3">
+              <label class="form-label-custom">Email</label>
+              <input type="email" class="form-control-custom" id="newAdminEmail" required>
+            </div>
+            <div class="mb-3">
+              <label class="form-label-custom">Password</label>
+              <input type="password" class="form-control-custom" id="newAdminPass" required minlength="6">
+            </div>
+          </form>
+        </div>
+        <div class="modal-footer">
+          <button class="btn-outline-custom btn-sm-custom" data-bs-dismiss="modal">Cancel</button>
+          <button form="addAdminForm" type="submit" class="btn-primary-custom btn-sm-custom"><i class="fas fa-check me-1"></i>Create</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+  <script src="../js/utils.js"></script>
+  <script src="../js/seed-data.js"></script>
+  <script src="../js/auth.js"></script>
+  <script src="../js/app.js"></script>
+
+  <script>
+    document.addEventListener('DOMContentLoaded', () => {
+      SeedData.init();
+      Auth.init();
+      if (!Auth.isAdmin()) { window.location.href = 'login.html'; return; }
+      loadSettings();
+      loadAdminUsers();
+      loadStockHistory();
+    });
+
+    function loadSettings() {
+      const s = App.getSettings();
+      document.getElementById('setShopName').value = s.shop_name || '';
+      document.getElementById('setTagline').value = s.tagline || '';
+      document.getElementById('setPhone').value = s.phone || '';
+      document.getElementById('setEmail').value = s.email || '';
+      document.getElementById('setAddress').value = s.address || '';
+      document.getElementById('setGstNumber').value = s.gst_number || '';
+      document.getElementById('setHours').value = s.working_hours || '';
+      document.getElementById('setGstRate').value = s.gst_rate || 18;
+      document.getElementById('setDeliveryCharge').value = s.delivery_charge || 40;
+      document.getElementById('setFreeDelivery').value = s.free_delivery_above || 500;
+      document.getElementById('setLowStockThreshold').value = s.low_stock_threshold || 10;
+
+      // Payment methods
+      const pm = s.payment_methods || {};
+      document.getElementById('payCod').checked = pm.cod !== false;
+      document.getElementById('payUpi').checked = pm.upi !== false;
+      document.getElementById('payCard').checked = pm.card === true;
+      document.getElementById('payNetbanking').checked = pm.netbanking === true;
+    }
+
+    function saveShopInfo(e) {
+      e.preventDefault();
+      App.updateSettings({
+        shop_name: document.getElementById('setShopName').value.trim(),
+        tagline: document.getElementById('setTagline').value.trim(),
+        phone: document.getElementById('setPhone').value.trim(),
+        email: document.getElementById('setEmail').value.trim(),
+        address: document.getElementById('setAddress').value.trim(),
+        gst_number: document.getElementById('setGstNumber').value.trim(),
+        working_hours: document.getElementById('setHours').value.trim()
+      });
+      Utils.showToast('Shop information saved', 'success');
+    }
+
+    function saveTaxSettings(e) {
+      e.preventDefault();
+      App.updateSettings({
+        gst_rate: parseFloat(document.getElementById('setGstRate').value),
+        delivery_charge: parseFloat(document.getElementById('setDeliveryCharge').value),
+        free_delivery_above: parseFloat(document.getElementById('setFreeDelivery').value)
+      });
+      Utils.showToast('Tax & delivery settings saved', 'success');
+    }
+
+    function saveStockSettings(e) {
+      e.preventDefault();
+      App.updateSettings({
+        low_stock_threshold: parseInt(document.getElementById('setLowStockThreshold').value)
+      });
+      Utils.showToast('Stock settings saved', 'success');
+    }
+
+    function savePaymentMethods() {
+      App.updateSettings({
+        payment_methods: {
+          cod: document.getElementById('payCod').checked,
+          upi: document.getElementById('payUpi').checked,
+          card: document.getElementById('payCard').checked,
+          netbanking: document.getElementById('payNetbanking').checked
+        }
+      });
+      Utils.showToast('Payment methods updated', 'success');
+    }
+
+    function loadAdminUsers() {
+      const users = App.getAll('users');
+      const admins = users.filter(u => u.role === 'admin');
+      document.getElementById('adminUsersBody').innerHTML = admins.map(u => `
+        <tr>
+          <td class="fw-bold">${Utils.sanitize(u.name)}</td>
+          <td><small>${Utils.sanitize(u.email)}</small></td>
+          <td><span class="status-badge status-confirmed">Admin</span></td>
+          <td><small>${Utils.formatDate(u.created_at)}</small></td>
+          <td><small class="text-muted">—</small></td>
+        </tr>
+      `).join('');
+    }
+
+    function showAddAdminModal() {
+      document.getElementById('addAdminForm').reset();
+      new bootstrap.Modal(document.getElementById('addAdminModal')).show();
+    }
+
+    async function createAdmin(e) {
+      e.preventDefault();
+      const users = App.getAll('users');
+      const email = document.getElementById('newAdminEmail').value.trim();
+      
+      if (users.find(u => u.email === email)) {
+        Utils.showToast('Email already exists', 'error');
+        return;
+      }
+
+      const hash = await Utils.hashPassword(document.getElementById('newAdminPass').value);
+      App.add('users', {
+        id: Utils.generateId(),
+        name: document.getElementById('newAdminName').value.trim(),
+        email: email,
+        password_hash: hash,
+        role: 'admin',
+        phone: '',
+        addresses: [],
+        created_at: new Date().toISOString()
+      });
+
+      Utils.showToast('Admin user created', 'success');
+      bootstrap.Modal.getInstance(document.getElementById('addAdminModal')).hide();
+      loadAdminUsers();
+    }
+
+    function loadStockHistory() {
+      const history = App.getAll('stock_history').sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp)).slice(0, 10);
+      
+      document.getElementById('stockHistory').innerHTML = history.length === 0
+        ? '<p class="text-muted text-center small">No stock changes recorded yet.</p>'
+        : history.map(h => `
+          <div class="d-flex align-items-center justify-content-between py-2 border-bottom" style="font-size:var(--fs-xs);border-color:var(--gray-100)!important;">
+            <div>
+              <span class="fw-600">${Utils.sanitize(h.product_name || 'Product')}</span>
+              <br><span class="text-muted">${h.qty_before} → ${h.qty_after} (${h.action})</span>
+            </div>
+            <small class="text-muted">${Utils.timeAgo(h.timestamp)}</small>
+          </div>
+        `).join('');
+    }
+
+    function exportData() {
+      const data = {
+        products: App.getAll('products'),
+        orders: App.getAll('orders'),
+        users: App.getAll('users'),
+        settings: App.getSettings(),
+        estimates: App.getAll('estimates'),
+        invoices: App.getAll('invoices'),
+        stock_history: App.getAll('stock_history'),
+        exported_at: new Date().toISOString()
+      };
+
+      const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `shobha_medical_backup_${Utils.formatDate(new Date()).replace(/-/g, '')}.json`;
+      a.click();
+      URL.revokeObjectURL(url);
+      Utils.showToast('Data exported successfully', 'success');
+    }
+
+    function resetData() {
+      if (confirm('⚠️ This will reset ALL data to default. Are you sure?')) {
+        SeedData.reset();
+        Utils.showToast('Data reset to defaults', 'success');
+        setTimeout(() => location.reload(), 500);
+      }
+    }
+  </script>
+</body>
+</html>

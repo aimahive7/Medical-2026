@@ -1,0 +1,404 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Order Management — SHOBHA MEDICAL STORES Admin</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" rel="stylesheet">
+  <link href="../style.css" rel="stylesheet">
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+</head>
+<body>
+
+  <aside class="admin-sidebar" id="adminSidebar">
+    <div class="sidebar-brand">
+      <h4><i class="fas fa-clinic-medical me-2" style="color:var(--primary-400);"></i>SHOBHA</h4>
+      <span>Medical Stores — Admin</span>
+    </div>
+    <ul class="sidebar-nav">
+      <li class="nav-item"><a class="nav-link" href="dashboard.html"><i class="fas fa-tachometer-alt"></i> Dashboard</a></li>
+      <li class="nav-item"><a class="nav-link" href="products.html"><i class="fas fa-pills"></i> Products</a></li>
+      <li class="nav-item"><a class="nav-link active" href="orders.html"><i class="fas fa-clipboard-list"></i> Orders</a></li>
+      <li class="nav-item"><a class="nav-link" href="settings.html"><i class="fas fa-cog"></i> Settings</a></li>
+      <li class="nav-item" style="margin-top:2rem;"><a class="nav-link" href="../index.html"><i class="fas fa-store"></i> View Store</a></li>
+      <li class="nav-item"><a class="nav-link text-danger" href="#" onclick="Auth.logout()"><i class="fas fa-sign-out-alt"></i> Logout</a></li>
+    </ul>
+  </aside>
+
+  <main class="admin-main">
+    <div class="admin-topbar">
+      <div>
+        <button class="btn btn-sm d-lg-none me-2" onclick="document.getElementById('adminSidebar').classList.toggle('show')">
+          <i class="fas fa-bars"></i>
+        </button>
+        <h2>Order Management</h2>
+      </div>
+    </div>
+
+    <!-- Order Status Quick Filters -->
+    <div class="filter-pills mb-4" id="statusFilters">
+      <button class="filter-pill active" onclick="filterOrders('all', this)">All</button>
+      <button class="filter-pill" onclick="filterOrders('pending', this)">🕐 Pending</button>
+      <button class="filter-pill" onclick="filterOrders('confirmed', this)">✅ Confirmed</button>
+      <button class="filter-pill" onclick="filterOrders('packed', this)">📦 Packed</button>
+      <button class="filter-pill" onclick="filterOrders('dispatched', this)">🚚 Dispatched</button>
+      <button class="filter-pill" onclick="filterOrders('delivered', this)">✅ Delivered</button>
+    </div>
+
+    <!-- Search / Date Filter -->
+    <div class="row g-3 mb-4">
+      <div class="col-lg-4">
+        <input type="text" class="form-control-custom" id="searchOrders" placeholder="🔍 Search by order #, customer name..." oninput="loadOrdersTable()">
+      </div>
+      <div class="col-lg-3">
+        <input type="date" class="form-control-custom" id="dateFrom" onchange="loadOrdersTable()">
+      </div>
+      <div class="col-lg-3">
+        <input type="date" class="form-control-custom" id="dateTo" onchange="loadOrdersTable()">
+      </div>
+      <div class="col-lg-2">
+        <span class="text-muted" style="font-size:var(--fs-sm);line-height:3rem;" id="totalOrdersCount"></span>
+      </div>
+    </div>
+
+    <!-- Orders Table -->
+    <div class="table-container">
+      <table class="table mb-0">
+        <thead>
+          <tr>
+            <th>Order #</th>
+            <th>Customer</th>
+            <th>Date</th>
+            <th>Items</th>
+            <th>Total</th>
+            <th>Payment</th>
+            <th>Status</th>
+            <th>Actions</th>
+          </tr>
+        </thead>
+        <tbody id="ordersTableBody">
+        </tbody>
+      </table>
+    </div>
+  </main>
+
+  <!-- Order Detail Modal -->
+  <div class="modal fade" id="orderModal" tabindex="-1">
+    <div class="modal-dialog modal-lg modal-dialog-centered">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h5 class="modal-title" id="orderModalTitle"><i class="fas fa-box me-2"></i>Order Details</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+        </div>
+        <div class="modal-body" id="orderModalBody">
+        </div>
+        <div class="modal-footer" id="orderModalFooter">
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+  <script src="../js/utils.js"></script>
+  <script src="../js/seed-data.js"></script>
+  <script src="../js/auth.js"></script>
+  <script src="../js/app.js"></script>
+
+  <script>
+    let currentStatusFilter = 'all';
+
+    document.addEventListener('DOMContentLoaded', () => {
+      SeedData.init();
+      Auth.init();
+      if (!Auth.isAdmin()) { window.location.href = 'login.html'; return; }
+      loadOrdersTable();
+    });
+
+    function filterOrders(status, btn) {
+      document.querySelectorAll('#statusFilters .filter-pill').forEach(p => p.classList.remove('active'));
+      btn.classList.add('active');
+      currentStatusFilter = status;
+      loadOrdersTable();
+    }
+
+    function loadOrdersTable() {
+      let orders = App.getAll('orders');
+      const search = document.getElementById('searchOrders').value.trim().toLowerCase();
+      const dateFrom = document.getElementById('dateFrom').value;
+      const dateTo = document.getElementById('dateTo').value;
+
+      // Status filter
+      if (currentStatusFilter !== 'all') {
+        orders = orders.filter(o => o.status === currentStatusFilter);
+      }
+
+      // Search
+      if (search) {
+        orders = orders.filter(o =>
+          (o.order_number || '').toLowerCase().includes(search) ||
+          (o.customer_name || '').toLowerCase().includes(search) ||
+          (o.customer_email || '').toLowerCase().includes(search)
+        );
+      }
+
+      // Date range
+      if (dateFrom) {
+        orders = orders.filter(o => new Date(o.created_at) >= new Date(dateFrom));
+      }
+      if (dateTo) {
+        const to = new Date(dateTo);
+        to.setHours(23, 59, 59);
+        orders = orders.filter(o => new Date(o.created_at) <= to);
+      }
+
+      // Sort newest first
+      orders.sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+
+      document.getElementById('totalOrdersCount').textContent = `${orders.length} orders`;
+
+      document.getElementById('ordersTableBody').innerHTML = orders.length === 0
+        ? `<tr><td colspan="8" class="text-center py-4 text-muted">No orders found</td></tr>`
+        : orders.map(order => {
+          const statusInfo = Utils.getOrderStatusInfo(order.status);
+          return `
+            <tr>
+              <td><strong>${order.order_number}</strong></td>
+              <td>
+                <div>${Utils.sanitize(order.customer_name || 'Guest')}</div>
+                <small class="text-muted">${Utils.sanitize(order.customer_email || '')}</small>
+              </td>
+              <td><small>${Utils.formatDate(order.created_at)}</small></td>
+              <td>${order.items.length} item${order.items.length !== 1 ? 's' : ''}</td>
+              <td><strong>${Utils.formatCurrency(order.total)}</strong></td>
+              <td><small>${order.payment_method || 'N/A'}</small></td>
+              <td><span class="status-badge ${statusInfo.class}"><i class="fas ${statusInfo.icon} me-1"></i>${statusInfo.label}</span></td>
+              <td>
+                <div class="d-flex gap-1">
+                  <button class="btn btn-sm btn-outline-primary" onclick="showOrderDetail('${order.id}')" title="View">
+                    <i class="fas fa-eye" style="font-size:0.7rem;"></i>
+                  </button>
+                  <button class="btn btn-sm btn-outline-success" onclick="generateInvoice('${order.id}')" title="Invoice PDF">
+                    <i class="fas fa-file-pdf" style="font-size:0.7rem;"></i>
+                  </button>
+                </div>
+              </td>
+            </tr>
+          `;
+        }).join('');
+    }
+
+    function showOrderDetail(orderId) {
+      const order = App.getById('orders', orderId);
+      if (!order) return;
+
+      const statusInfo = Utils.getOrderStatusInfo(order.status);
+      const nextStatuses = {
+        'pending': ['confirmed', 'cancelled'],
+        'confirmed': ['packed', 'cancelled'],
+        'packed': ['dispatched'],
+        'dispatched': ['delivered'],
+        'delivered': [],
+        'cancelled': []
+      };
+
+      document.getElementById('orderModalTitle').innerHTML = `<i class="fas fa-box me-2"></i>${order.order_number}`;
+
+      document.getElementById('orderModalBody').innerHTML = `
+        <div class="row g-3">
+          <div class="col-md-6">
+            <div class="glass-card" style="background:var(--gray-50);">
+              <h6><i class="fas fa-user me-2 text-primary"></i>Customer</h6>
+              <p class="mb-1 fw-bold">${Utils.sanitize(order.customer_name || 'Guest')}</p>
+              <p class="mb-1 small text-muted"><i class="fas fa-envelope me-1"></i>${Utils.sanitize(order.customer_email || 'N/A')}</p>
+              <p class="mb-0 small text-muted"><i class="fas fa-phone me-1"></i>${Utils.sanitize(order.customer_phone || 'N/A')}</p>
+            </div>
+          </div>
+          <div class="col-md-6">
+            <div class="glass-card" style="background:var(--gray-50);">
+              <h6><i class="fas fa-map-marker-alt me-2 text-danger"></i>Delivery Address</h6>
+              <p class="mb-0 small text-muted">
+                ${order.address ? `${order.address.line1 || ''}<br>${order.address.city || ''}, ${order.address.state || ''} - ${order.address.pincode || ''}` : 'N/A'}
+              </p>
+            </div>
+          </div>
+          <div class="col-12">
+            <h6>Order Items</h6>
+            <div class="table-container">
+              <table class="table mb-0">
+                <thead><tr><th>#</th><th>Product</th><th class="text-center">Qty</th><th class="text-end">Price</th><th class="text-end">Total</th></tr></thead>
+                <tbody>
+                  ${order.items.map((item, i) => `
+                    <tr>
+                      <td>${i + 1}</td>
+                      <td>${Utils.sanitize(item.name)}</td>
+                      <td class="text-center">${item.quantity}</td>
+                      <td class="text-end">${Utils.formatCurrency(item.price)}</td>
+                      <td class="text-end">${Utils.formatCurrency(item.price * item.quantity)}</td>
+                    </tr>
+                  `).join('')}
+                </tbody>
+              </table>
+            </div>
+          </div>
+          <div class="col-12">
+            <div class="glass-card" style="background:var(--gray-50);">
+              <div class="d-flex justify-content-between mb-1"><span class="small text-muted">Subtotal</span><span class="small">${Utils.formatCurrency(order.subtotal)}</span></div>
+              <div class="d-flex justify-content-between mb-1"><span class="small text-muted">GST</span><span class="small">${Utils.formatCurrency(order.tax)}</span></div>
+              <hr>
+              <div class="d-flex justify-content-between fw-bold"><span>Total</span><span class="text-gradient" style="font-size:var(--fs-xl);">${Utils.formatCurrency(order.total)}</span></div>
+            </div>
+          </div>
+          <div class="col-12">
+            <div class="d-flex align-items-center gap-2 flex-wrap">
+              <span class="fw-bold small">Status:</span>
+              <span class="status-badge ${statusInfo.class}"><i class="fas ${statusInfo.icon} me-1"></i>${statusInfo.label}</span>
+              <span class="fw-bold small ms-3">Payment:</span>
+              <span class="small">${order.payment_method || 'N/A'}</span>
+            </div>
+          </div>
+          ${order.notes ? `<div class="col-12"><p class="small text-muted"><strong>Notes:</strong> ${Utils.sanitize(order.notes)}</p></div>` : ''}
+        </div>
+      `;
+
+      // Footer actions
+      const next = nextStatuses[order.status] || [];
+      let footerHTML = '';
+      if (next.length > 0) {
+        footerHTML += `<div class="d-flex gap-2 flex-wrap">`;
+        next.forEach(s => {
+          const info = Utils.getOrderStatusInfo(s);
+          const btnClass = s === 'cancelled' ? 'btn-outline-danger' : 'btn-primary-custom btn-sm-custom';
+          footerHTML += `<button class="${btnClass}" onclick="updateOrderStatus('${orderId}', '${s}')"><i class="fas ${info.icon} me-1"></i>Mark as ${info.label}</button>`;
+        });
+        footerHTML += `</div>`;
+      }
+      footerHTML += `<button class="btn-outline-custom btn-sm-custom" onclick="generateInvoice('${orderId}')"><i class="fas fa-file-pdf me-1"></i>Generate Invoice</button>`;
+
+      document.getElementById('orderModalFooter').innerHTML = footerHTML;
+      new bootstrap.Modal(document.getElementById('orderModal')).show();
+    }
+
+    function updateOrderStatus(orderId, newStatus) {
+      const updates = { status: newStatus };
+      if (newStatus === 'confirmed') updates.confirmed_at = new Date().toISOString();
+      if (newStatus === 'delivered') updates.delivered_at = new Date().toISOString();
+
+      App.update('orders', orderId, updates);
+      Utils.showToast(`Order status updated to ${newStatus}`, 'success');
+      
+      bootstrap.Modal.getInstance(document.getElementById('orderModal')).hide();
+      loadOrdersTable();
+    }
+
+    function generateInvoice(orderId) {
+      const order = App.getById('orders', orderId);
+      if (!order) return;
+
+      const settings = App.getSettings();
+      const { jsPDF } = window.jspdf;
+      const doc = new jsPDF();
+
+      // Header
+      doc.setFontSize(20);
+      doc.setFont('helvetica', 'bold');
+      doc.text(settings.shop_name || 'SHOBHA MEDICAL STORES', 105, 25, { align: 'center' });
+
+      doc.setFontSize(10);
+      doc.setFont('helvetica', 'normal');
+      doc.text(settings.address || 'Pune, Maharashtra', 105, 32, { align: 'center' });
+      doc.text(`Phone: ${settings.phone || ''}  |  Email: ${settings.email || ''}`, 105, 38, { align: 'center' });
+      if (settings.gst_number) {
+        doc.text(`GSTIN: ${settings.gst_number}`, 105, 44, { align: 'center' });
+      }
+
+      // Line
+      doc.setDrawColor(0, 200, 151);
+      doc.setLineWidth(1);
+      doc.line(15, 48, 195, 48);
+
+      // Invoice Info
+      doc.setFontSize(14);
+      doc.setFont('helvetica', 'bold');
+      doc.text('TAX INVOICE', 105, 58, { align: 'center' });
+
+      const invoiceNum = Utils.generateNumber('INV');
+      doc.setFontSize(10);
+      doc.setFont('helvetica', 'normal');
+      doc.text(`Invoice #: ${invoiceNum}`, 15, 68);
+      doc.text(`Date: ${Utils.formatDate(new Date())}`, 15, 74);
+      doc.text(`Order #: ${order.order_number}`, 15, 80);
+
+      doc.text(`Customer: ${order.customer_name || 'Guest'}`, 120, 68);
+      doc.text(`Email: ${order.customer_email || 'N/A'}`, 120, 74);
+      doc.text(`Phone: ${order.customer_phone || 'N/A'}`, 120, 80);
+
+      // Table Header
+      let y = 92;
+      doc.setFillColor(0, 200, 151);
+      doc.rect(15, y - 5, 180, 8, 'F');
+      doc.setTextColor(255, 255, 255);
+      doc.setFont('helvetica', 'bold');
+      doc.setFontSize(9);
+      doc.text('#', 18, y);
+      doc.text('Product', 28, y);
+      doc.text('Qty', 120, y);
+      doc.text('Price', 140, y);
+      doc.text('Total', 170, y);
+
+      // Table Body
+      doc.setTextColor(0, 0, 0);
+      doc.setFont('helvetica', 'normal');
+      y += 10;
+
+      order.items.forEach((item, idx) => {
+        doc.text(String(idx + 1), 18, y);
+        doc.text(Utils.truncate(item.name, 40), 28, y);
+        doc.text(String(item.quantity), 122, y);
+        doc.text(`₹${item.price.toFixed(2)}`, 137, y);
+        doc.text(`₹${(item.price * item.quantity).toFixed(2)}`, 167, y);
+        y += 7;
+      });
+
+      // Line
+      doc.line(15, y, 195, y);
+      y += 8;
+
+      // Totals
+      doc.text('Subtotal:', 140, y);
+      doc.text(`₹${order.subtotal.toFixed(2)}`, 170, y);
+      y += 7;
+      doc.text(`GST (${settings.gst_rate || 18}%):`, 140, y);
+      doc.text(`₹${order.tax.toFixed(2)}`, 170, y);
+      y += 7;
+
+      doc.setFont('helvetica', 'bold');
+      doc.setFontSize(12);
+      doc.text('TOTAL:', 140, y);
+      doc.text(`₹${order.total.toFixed(2)}`, 167, y);
+
+      // Footer
+      y += 20;
+      doc.setFont('helvetica', 'normal');
+      doc.setFontSize(9);
+      doc.setTextColor(100, 100, 100);
+      doc.text('Payment: ' + (order.payment_method || 'N/A'), 15, y);
+      y += 10;
+      doc.text('Thank you for shopping with SHOBHA MEDICAL STORES!', 105, y, { align: 'center' });
+      y += 5;
+      doc.text('This is a computer-generated invoice and does not require a signature.', 105, y, { align: 'center' });
+
+      // Save invoice record
+      App.add('invoices', {
+        id: Utils.generateId(),
+        order_id: orderId,
+        invoice_number: invoiceNum,
+        created_at: new Date().toISOString()
+      });
+
+      doc.save(`Invoice_${invoiceNum}_${order.order_number}.pdf`);
+      Utils.showToast('Invoice PDF generated!', 'success');
+    }
+  </script>
+</body>
+</html>

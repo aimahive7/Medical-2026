@@ -1,0 +1,210 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="Track your order status and view order history at SHOBHA MEDICAL STORES.">
+  <title>My Orders — SHOBHA MEDICAL STORES</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" rel="stylesheet">
+  <link href="style.css" rel="stylesheet">
+</head>
+<body>
+  <div class="page-loader" id="pageLoader"><div class="loader-spinner"></div></div>
+  <div id="navbar-container"></div>
+
+  <section style="padding-top:100px;padding-bottom:1rem;background:white;border-bottom:var(--border-light);">
+    <div class="container">
+      <nav aria-label="breadcrumb">
+        <ol class="breadcrumb mb-0" style="font-size:var(--fs-sm);">
+          <li class="breadcrumb-item"><a href="index.html">Home</a></li>
+          <li class="breadcrumb-item active">My Orders</li>
+        </ol>
+      </nav>
+    </div>
+  </section>
+
+  <section class="section-padding" style="padding-top:2rem;">
+    <div class="container">
+      <h2 class="mb-4"><i class="fas fa-clipboard-list me-2 text-gradient"></i>My Orders</h2>
+
+      <div id="ordersContent">
+        <!-- Loaded dynamically -->
+      </div>
+    </div>
+  </section>
+
+  <!-- Order Detail Modal -->
+  <div class="modal fade" id="orderDetailModal" tabindex="-1">
+    <div class="modal-dialog modal-lg modal-dialog-centered">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h5 class="modal-title"><i class="fas fa-box me-2"></i>Order Details</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+        </div>
+        <div class="modal-body" id="orderDetailBody">
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div id="footer-container"></div>
+
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+  <script src="js/utils.js"></script>
+  <script src="js/seed-data.js"></script>
+  <script src="js/auth.js"></script>
+  <script src="js/app.js"></script>
+
+  <script>
+    document.addEventListener('DOMContentLoaded', () => {
+      App.init();
+      document.getElementById('navbar-container').innerHTML = App.getNavbarHTML('orders');
+      document.getElementById('footer-container').innerHTML = App.getFooterHTML();
+      loadOrders();
+    });
+
+    function loadOrders() {
+      const user = Auth.getCurrentUser();
+      let orders = App.getAll('orders');
+
+      // Filter to current user's orders (or show all if not logged in — for demo)
+      if (user && user.role !== 'admin') {
+        orders = orders.filter(o => o.user_id === user.id);
+      }
+
+      // Sort newest first
+      orders.sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+
+      const container = document.getElementById('ordersContent');
+
+      if (orders.length === 0) {
+        container.innerHTML = `
+          <div class="empty-state">
+            <i class="fas fa-box-open"></i>
+            <h4>No orders yet</h4>
+            <p>You haven't placed any orders yet. Start shopping to see your orders here!</p>
+            <a href="products.html" class="btn-primary-custom">
+              <i class="fas fa-pills me-1"></i> Browse Products
+            </a>
+          </div>`;
+        return;
+      }
+
+      container.innerHTML = orders.map(order => {
+        const statusInfo = Utils.getOrderStatusInfo(order.status);
+        return `
+          <div class="cart-item fade-in mb-3" style="cursor:pointer;" onclick="showOrderDetail('${order.id}')">
+            <div class="item-img" style="background:var(--primary-50);">
+              <i class="fas fa-box" style="color:var(--primary-500);font-size:1.5rem;"></i>
+            </div>
+            <div class="item-info flex-grow-1">
+              <div class="d-flex align-items-center gap-2 mb-1 flex-wrap">
+                <span class="item-name mb-0">${order.order_number}</span>
+                <span class="status-badge ${statusInfo.class}">
+                  <i class="fas ${statusInfo.icon} me-1"></i>${statusInfo.label}
+                </span>
+              </div>
+              <div class="item-category">${order.items.length} item${order.items.length !== 1 ? 's' : ''} • ${Utils.formatDate(order.created_at)}</div>
+              <div class="text-muted" style="font-size:var(--fs-xs);margin-top:0.2rem;">
+                ${order.items.map(i => i.name).join(', ')}
+              </div>
+            </div>
+            <div class="text-end">
+              <div class="item-price">${Utils.formatCurrency(order.total)}</div>
+              <div class="text-muted" style="font-size:var(--fs-xs);">${order.payment_method}</div>
+            </div>
+            <i class="fas fa-chevron-right text-muted"></i>
+          </div>
+        `;
+      }).join('');
+    }
+
+    function showOrderDetail(orderId) {
+      const order = App.getById('orders', orderId);
+      if (!order) return;
+
+      const statusInfo = Utils.getOrderStatusInfo(order.status);
+      const statuses = ['pending', 'confirmed', 'packed', 'dispatched', 'delivered'];
+      const currentIdx = statuses.indexOf(order.status);
+
+      let timelineHTML = statuses.map((s, idx) => {
+        const info = Utils.getOrderStatusInfo(s);
+        let stepClass = '';
+        if (idx < currentIdx) stepClass = 'completed';
+        else if (idx === currentIdx) stepClass = 'active';
+
+        return `
+          <div class="timeline-step ${stepClass}">
+            <h6>${info.label}</h6>
+            <p>${idx === 0 ? Utils.formatDateTime(order.created_at) : (idx <= currentIdx ? 'Completed' : 'Pending')}</p>
+          </div>
+        `;
+      }).join('');
+
+      document.getElementById('orderDetailBody').innerHTML = `
+        <div class="row g-4">
+          <div class="col-md-7">
+            <div class="d-flex align-items-center gap-2 mb-3">
+              <h5 class="mb-0">${order.order_number}</h5>
+              <span class="status-badge ${statusInfo.class}">
+                <i class="fas ${statusInfo.icon} me-1"></i>${statusInfo.label}
+              </span>
+            </div>
+
+            <!-- Items -->
+            <div class="table-container mb-3">
+              <table class="table mb-0">
+                <thead>
+                  <tr>
+                    <th>Product</th>
+                    <th class="text-center">Qty</th>
+                    <th class="text-end">Price</th>
+                    <th class="text-end">Total</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  ${order.items.map(item => `
+                    <tr>
+                      <td>${Utils.sanitize(item.name)}</td>
+                      <td class="text-center">${item.quantity}</td>
+                      <td class="text-end">${Utils.formatCurrency(item.price)}</td>
+                      <td class="text-end">${Utils.formatCurrency(item.price * item.quantity)}</td>
+                    </tr>
+                  `).join('')}
+                </tbody>
+              </table>
+            </div>
+
+            <div class="glass-card" style="background:var(--gray-50);">
+              <div class="d-flex justify-content-between mb-1"><span class="text-muted small">Subtotal</span><span class="small">${Utils.formatCurrency(order.subtotal)}</span></div>
+              <div class="d-flex justify-content-between mb-1"><span class="text-muted small">GST</span><span class="small">${Utils.formatCurrency(order.tax)}</span></div>
+              ${order.delivery_charge !== undefined ? `<div class="d-flex justify-content-between mb-1"><span class="text-muted small">Delivery</span><span class="small">${order.delivery_charge === 0 ? 'FREE' : Utils.formatCurrency(order.delivery_charge)}</span></div>` : ''}
+              <hr>
+              <div class="d-flex justify-content-between fw-bold">
+                <span>Total</span>
+                <span class="text-gradient" style="font-size:var(--fs-xl);">${Utils.formatCurrency(order.total)}</span>
+              </div>
+            </div>
+
+            <div class="mt-3" style="font-size:var(--fs-sm);">
+              <p class="mb-1"><strong>Payment:</strong> ${order.payment_method}</p>
+              ${order.address ? `<p class="mb-1"><strong>Delivery:</strong> ${order.address.line1 || ''}, ${order.address.city || ''} - ${order.address.pincode || ''}</p>` : ''}
+              ${order.notes ? `<p class="mb-0"><strong>Notes:</strong> ${Utils.sanitize(order.notes)}</p>` : ''}
+            </div>
+          </div>
+          <div class="col-md-5">
+            <h6 class="mb-3"><i class="fas fa-route me-2"></i>Order Timeline</h6>
+            <div class="order-timeline">
+              ${timelineHTML}
+            </div>
+          </div>
+        </div>
+      `;
+
+      const modal = new bootstrap.Modal(document.getElementById('orderDetailModal'));
+      modal.show();
+    }
+  </script>
+</body>
+</html>

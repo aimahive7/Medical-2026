@@ -1,0 +1,434 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Product Management — SHOBHA MEDICAL STORES Admin</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" rel="stylesheet">
+  <link href="../style.css" rel="stylesheet">
+</head>
+<body>
+
+  <!-- Admin Sidebar -->
+  <aside class="admin-sidebar" id="adminSidebar">
+    <div class="sidebar-brand">
+      <h4><i class="fas fa-clinic-medical me-2" style="color:var(--primary-400);"></i>SHOBHA</h4>
+      <span>Medical Stores — Admin</span>
+    </div>
+    <ul class="sidebar-nav">
+      <li class="nav-item"><a class="nav-link" href="dashboard.html"><i class="fas fa-tachometer-alt"></i> Dashboard</a></li>
+      <li class="nav-item"><a class="nav-link active" href="products.html"><i class="fas fa-pills"></i> Products</a></li>
+      <li class="nav-item"><a class="nav-link" href="orders.html"><i class="fas fa-clipboard-list"></i> Orders</a></li>
+      <li class="nav-item"><a class="nav-link" href="settings.html"><i class="fas fa-cog"></i> Settings</a></li>
+      <li class="nav-item" style="margin-top:2rem;"><a class="nav-link" href="../index.html"><i class="fas fa-store"></i> View Store</a></li>
+      <li class="nav-item"><a class="nav-link text-danger" href="#" onclick="Auth.logout()"><i class="fas fa-sign-out-alt"></i> Logout</a></li>
+    </ul>
+  </aside>
+
+  <main class="admin-main">
+    <div class="admin-topbar">
+      <div>
+        <button class="btn btn-sm d-lg-none me-2" onclick="document.getElementById('adminSidebar').classList.toggle('show')">
+          <i class="fas fa-bars"></i>
+        </button>
+        <h2>Product Management</h2>
+      </div>
+      <button class="btn-primary-custom" onclick="showAddModal()">
+        <i class="fas fa-plus me-1"></i> Add Product
+      </button>
+    </div>
+
+    <!-- Filters -->
+    <div class="row g-3 mb-4">
+      <div class="col-lg-4">
+        <input type="text" class="form-control-custom" id="searchProducts" placeholder="🔍 Search products..." oninput="loadProductsTable()">
+      </div>
+      <div class="col-lg-2">
+        <select class="form-control-custom" id="filterCategory" onchange="loadProductsTable()">
+          <option value="all">All Categories</option>
+        </select>
+      </div>
+      <div class="col-lg-2">
+        <select class="form-control-custom" id="filterStock" onchange="loadProductsTable()">
+          <option value="all">All Stock</option>
+          <option value="in-stock">In Stock</option>
+          <option value="low-stock">Low Stock</option>
+          <option value="out-of-stock">Out of Stock</option>
+        </select>
+      </div>
+      <div class="col-lg-2">
+        <select class="form-control-custom" id="filterSort" onchange="loadProductsTable()">
+          <option value="newest">Newest First</option>
+          <option value="name-asc">Name A-Z</option>
+          <option value="price-asc">Price Low-High</option>
+          <option value="price-desc">Price High-Low</option>
+        </select>
+      </div>
+      <div class="col-lg-2">
+        <span class="text-muted" style="font-size:var(--fs-sm);line-height:3rem;" id="totalProductsCount"></span>
+      </div>
+    </div>
+
+    <!-- Products Table -->
+    <div class="table-container">
+      <table class="table mb-0">
+        <thead>
+          <tr>
+            <th><input type="checkbox" id="selectAll" onchange="toggleSelectAll()"></th>
+            <th>Product</th>
+            <th>Category</th>
+            <th>Price</th>
+            <th>Stock</th>
+            <th>Status</th>
+            <th>Expiry</th>
+            <th>Actions</th>
+          </tr>
+        </thead>
+        <tbody id="productsTableBody">
+        </tbody>
+      </table>
+    </div>
+
+    <!-- Bulk Actions -->
+    <div class="d-flex gap-2 mt-3" id="bulkActions" style="display:none!important;">
+      <button class="btn btn-sm btn-outline-warning" onclick="bulkAction('hide')"><i class="fas fa-eye-slash me-1"></i>Hide Selected</button>
+      <button class="btn btn-sm btn-outline-danger" onclick="bulkAction('delete')"><i class="fas fa-trash me-1"></i>Delete Selected</button>
+    </div>
+  </main>
+
+  <!-- Add/Edit Product Modal -->
+  <div class="modal fade" id="productModal" tabindex="-1">
+    <div class="modal-dialog modal-lg modal-dialog-centered">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h5 class="modal-title" id="productModalTitle"><i class="fas fa-pills me-2"></i>Add Product</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+        </div>
+        <div class="modal-body">
+          <form id="productForm" onsubmit="saveProduct(event)">
+            <input type="hidden" id="editProductId">
+            <div class="row g-3">
+              <div class="col-md-8">
+                <label class="form-label-custom">Product Name *</label>
+                <input type="text" class="form-control-custom" id="prodName" required>
+              </div>
+              <div class="col-md-4">
+                <label class="form-label-custom">Category *</label>
+                <select class="form-control-custom" id="prodCategory" required>
+                  <option value="Medicines">Medicines</option>
+                  <option value="Supplements">Supplements</option>
+                  <option value="Medical Devices">Medical Devices</option>
+                  <option value="Personal Care">Personal Care</option>
+                  <option value="Baby Care">Baby Care</option>
+                  <option value="Ayurvedic">Ayurvedic</option>
+                </select>
+              </div>
+              <div class="col-12">
+                <label class="form-label-custom">Description *</label>
+                <textarea class="form-control-custom" id="prodDesc" rows="3" required></textarea>
+              </div>
+              <div class="col-md-3">
+                <label class="form-label-custom">Selling Price (₹) *</label>
+                <input type="number" class="form-control-custom" id="prodPrice" required min="0" step="0.01">
+              </div>
+              <div class="col-md-3">
+                <label class="form-label-custom">Cost Price (₹)</label>
+                <input type="number" class="form-control-custom" id="prodCostPrice" min="0" step="0.01">
+              </div>
+              <div class="col-md-3">
+                <label class="form-label-custom">Stock Quantity *</label>
+                <input type="number" class="form-control-custom" id="prodStock" required min="0">
+              </div>
+              <div class="col-md-3">
+                <label class="form-label-custom">Expiry Date</label>
+                <input type="date" class="form-control-custom" id="prodExpiry">
+              </div>
+              <div class="col-md-4">
+                <label class="form-label-custom">Dosage / Strength</label>
+                <input type="text" class="form-control-custom" id="prodDosage" placeholder="e.g., 500mg">
+              </div>
+              <div class="col-md-4">
+                <label class="form-label-custom">Form / Pack</label>
+                <input type="text" class="form-control-custom" id="prodStrength" placeholder="e.g., 10 Tablets">
+              </div>
+              <div class="col-md-4">
+                <label class="form-label-custom">Status</label>
+                <select class="form-control-custom" id="prodStatus">
+                  <option value="active">Active</option>
+                  <option value="inactive">Inactive</option>
+                </select>
+              </div>
+            </div>
+          </form>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn-outline-custom btn-sm-custom" data-bs-dismiss="modal">Cancel</button>
+          <button type="submit" form="productForm" class="btn-primary-custom btn-sm-custom">
+            <i class="fas fa-save me-1"></i> Save Product
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Stock Adjustment Modal -->
+  <div class="modal fade" id="stockModal" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h5 class="modal-title"><i class="fas fa-boxes me-2"></i>Adjust Stock</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+        </div>
+        <div class="modal-body">
+          <p>Product: <strong id="stockProductName"></strong></p>
+          <p>Current Stock: <strong id="stockCurrentQty"></strong></p>
+          <div class="row g-3">
+            <div class="col-6">
+              <label class="form-label-custom">Action</label>
+              <select class="form-control-custom" id="stockAction">
+                <option value="add">Add Stock</option>
+                <option value="reduce">Reduce Stock</option>
+              </select>
+            </div>
+            <div class="col-6">
+              <label class="form-label-custom">Quantity</label>
+              <input type="number" class="form-control-custom" id="stockQtyChange" min="1" required>
+            </div>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button class="btn-outline-custom btn-sm-custom" data-bs-dismiss="modal">Cancel</button>
+          <button class="btn-primary-custom btn-sm-custom" onclick="adjustStock()"><i class="fas fa-check me-1"></i>Update</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+  <script src="../js/utils.js"></script>
+  <script src="../js/seed-data.js"></script>
+  <script src="../js/auth.js"></script>
+  <script src="../js/app.js"></script>
+
+  <script>
+    let selectedProducts = new Set();
+    let stockProductId = null;
+
+    document.addEventListener('DOMContentLoaded', () => {
+      SeedData.init();
+      Auth.init();
+      if (!Auth.isAdmin()) { window.location.href = 'login.html'; return; }
+
+      // Populate category filter
+      const categories = App.getCategories();
+      const select = document.getElementById('filterCategory');
+      categories.forEach(cat => {
+        const opt = document.createElement('option');
+        opt.value = cat;
+        opt.textContent = cat;
+        select.appendChild(opt);
+      });
+
+      loadProductsTable();
+    });
+
+    function loadProductsTable() {
+      const filters = {
+        search: document.getElementById('searchProducts').value.trim(),
+        category: document.getElementById('filterCategory').value,
+        stockStatus: document.getElementById('filterStock').value === 'all' ? undefined : document.getElementById('filterStock').value,
+        sort: document.getElementById('filterSort').value
+      };
+
+      const products = App.getProducts(filters);
+      document.getElementById('totalProductsCount').textContent = `${products.length} products`;
+      const settings = App.getSettings();
+      const threshold = settings.low_stock_threshold || 10;
+
+      document.getElementById('productsTableBody').innerHTML = products.map(p => {
+        const stock = Utils.getStockStatus(p.stock_qty, threshold);
+        return `
+          <tr class="${p.is_hidden ? 'opacity-50' : ''}">
+            <td><input type="checkbox" value="${p.id}" onchange="toggleSelect('${p.id}', this.checked)"></td>
+            <td>
+              <div class="d-flex align-items-center gap-2">
+                <div style="width:40px;height:40px;border-radius:var(--radius-md);background:var(--gray-50);display:flex;align-items:center;justify-content:center;">
+                  <i class="fas ${Utils.getCategoryIcon(p.category)}" style="color:var(--primary-400);"></i>
+                </div>
+                <div>
+                  <strong style="font-size:var(--fs-sm);">${Utils.sanitize(p.name)}</strong>
+                  ${p.dosage ? `<br><small class="text-muted">${Utils.sanitize(p.dosage)}</small>` : ''}
+                </div>
+              </div>
+            </td>
+            <td><small>${p.category}</small></td>
+            <td><strong>${Utils.formatCurrency(p.price)}</strong></td>
+            <td>
+              <span class="status-badge ${stock.class}">${p.stock_qty}</span>
+              <button class="btn btn-sm p-0 ms-1" onclick="showStockModal('${p.id}')" title="Adjust Stock">
+                <i class="fas fa-edit" style="font-size:0.7rem;color:var(--text-muted);"></i>
+              </button>
+            </td>
+            <td>
+              ${p.is_hidden ? '<span class="status-badge status-cancelled">Hidden</span>' : '<span class="status-badge status-delivered">Visible</span>'}
+            </td>
+            <td><small>${p.expiry_date ? Utils.formatDate(p.expiry_date) : '—'}</small></td>
+            <td>
+              <div class="d-flex gap-1">
+                <button class="btn btn-sm btn-outline-primary" onclick="editProduct('${p.id}')" title="Edit">
+                  <i class="fas fa-pen" style="font-size:0.7rem;"></i>
+                </button>
+                <button class="btn btn-sm btn-outline-warning" onclick="toggleHide('${p.id}')" title="${p.is_hidden ? 'Show' : 'Hide'}">
+                  <i class="fas fa-${p.is_hidden ? 'eye' : 'eye-slash'}" style="font-size:0.7rem;"></i>
+                </button>
+                <button class="btn btn-sm btn-outline-danger" onclick="deleteProduct('${p.id}')" title="Delete">
+                  <i class="fas fa-trash" style="font-size:0.7rem;"></i>
+                </button>
+              </div>
+            </td>
+          </tr>
+        `;
+      }).join('');
+    }
+
+    function showAddModal() {
+      document.getElementById('productModalTitle').innerHTML = '<i class="fas fa-plus me-2"></i>Add Product';
+      document.getElementById('editProductId').value = '';
+      document.getElementById('productForm').reset();
+      new bootstrap.Modal(document.getElementById('productModal')).show();
+    }
+
+    function editProduct(id) {
+      const p = App.getById('products', id);
+      if (!p) return;
+
+      document.getElementById('productModalTitle').innerHTML = '<i class="fas fa-pen me-2"></i>Edit Product';
+      document.getElementById('editProductId').value = id;
+      document.getElementById('prodName').value = p.name;
+      document.getElementById('prodCategory').value = p.category;
+      document.getElementById('prodDesc').value = p.description;
+      document.getElementById('prodPrice').value = p.price;
+      document.getElementById('prodCostPrice').value = p.cost_price || '';
+      document.getElementById('prodStock').value = p.stock_qty;
+      document.getElementById('prodExpiry').value = p.expiry_date || '';
+      document.getElementById('prodDosage').value = p.dosage || '';
+      document.getElementById('prodStrength').value = p.strength || '';
+      document.getElementById('prodStatus').value = p.status || 'active';
+
+      new bootstrap.Modal(document.getElementById('productModal')).show();
+    }
+
+    function saveProduct(e) {
+      e.preventDefault();
+      const editId = document.getElementById('editProductId').value;
+
+      const productData = {
+        name: document.getElementById('prodName').value.trim(),
+        category: document.getElementById('prodCategory').value,
+        description: document.getElementById('prodDesc').value.trim(),
+        price: parseFloat(document.getElementById('prodPrice').value),
+        cost_price: parseFloat(document.getElementById('prodCostPrice').value) || 0,
+        stock_qty: parseInt(document.getElementById('prodStock').value),
+        expiry_date: document.getElementById('prodExpiry').value,
+        dosage: document.getElementById('prodDosage').value.trim(),
+        strength: document.getElementById('prodStrength').value.trim(),
+        status: document.getElementById('prodStatus').value
+      };
+
+      if (editId) {
+        App.update('products', editId, productData);
+        Utils.showToast('Product updated successfully', 'success');
+      } else {
+        productData.id = Utils.generateId();
+        productData.is_hidden = false;
+        productData.image = '';
+        productData.created_at = new Date().toISOString();
+        App.add('products', productData);
+        Utils.showToast('Product added successfully', 'success');
+      }
+
+      bootstrap.Modal.getInstance(document.getElementById('productModal')).hide();
+      loadProductsTable();
+    }
+
+    function toggleHide(id) {
+      const p = App.getById('products', id);
+      App.update('products', id, { is_hidden: !p.is_hidden });
+      Utils.showToast(p.is_hidden ? 'Product is now visible' : 'Product hidden from store', 'success');
+      loadProductsTable();
+    }
+
+    function deleteProduct(id) {
+      if (confirm('Are you sure you want to permanently delete this product?')) {
+        App.delete('products', id);
+        Utils.showToast('Product deleted', 'success');
+        loadProductsTable();
+      }
+    }
+
+    function showStockModal(id) {
+      const p = App.getById('products', id);
+      if (!p) return;
+      stockProductId = id;
+      document.getElementById('stockProductName').textContent = p.name;
+      document.getElementById('stockCurrentQty').textContent = p.stock_qty;
+      document.getElementById('stockQtyChange').value = '';
+      new bootstrap.Modal(document.getElementById('stockModal')).show();
+    }
+
+    function adjustStock() {
+      const action = document.getElementById('stockAction').value;
+      const qty = parseInt(document.getElementById('stockQtyChange').value);
+      if (!qty || qty <= 0) { Utils.showToast('Enter a valid quantity', 'error'); return; }
+
+      const p = App.getById('products', stockProductId);
+      const newQty = action === 'add' ? p.stock_qty + qty : Math.max(0, p.stock_qty - qty);
+
+      // Log stock history
+      App.add('stock_history', {
+        id: Utils.generateId(),
+        product_id: stockProductId,
+        product_name: p.name,
+        qty_before: p.stock_qty,
+        qty_after: newQty,
+        action: action,
+        timestamp: new Date().toISOString()
+      });
+
+      App.update('products', stockProductId, { stock_qty: newQty });
+      Utils.showToast(`Stock updated: ${p.stock_qty} → ${newQty}`, 'success');
+      bootstrap.Modal.getInstance(document.getElementById('stockModal')).hide();
+      loadProductsTable();
+    }
+
+    function toggleSelect(id, checked) {
+      if (checked) selectedProducts.add(id); else selectedProducts.delete(id);
+      document.getElementById('bulkActions').style.display = selectedProducts.size > 0 ? 'flex' : 'none';
+    }
+
+    function toggleSelectAll() {
+      const checked = document.getElementById('selectAll').checked;
+      document.querySelectorAll('#productsTableBody input[type="checkbox"]').forEach(cb => {
+        cb.checked = checked;
+        toggleSelect(cb.value, checked);
+      });
+    }
+
+    function bulkAction(action) {
+      if (selectedProducts.size === 0) return;
+      if (action === 'hide') {
+        selectedProducts.forEach(id => App.update('products', id, { is_hidden: true }));
+        Utils.showToast(`${selectedProducts.size} products hidden`, 'success');
+      } else if (action === 'delete') {
+        if (!confirm(`Delete ${selectedProducts.size} products permanently?`)) return;
+        selectedProducts.forEach(id => App.delete('products', id));
+        Utils.showToast(`${selectedProducts.size} products deleted`, 'success');
+      }
+      selectedProducts.clear();
+      document.getElementById('selectAll').checked = false;
+      loadProductsTable();
+    }
+  </script>
+</body>
+</html>

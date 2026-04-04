@@ -1,0 +1,336 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="Login or create your account at SHOBHA MEDICAL STORES. Manage your profile and orders.">
+  <title>My Account — SHOBHA MEDICAL STORES</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" rel="stylesheet">
+  <link href="style.css" rel="stylesheet">
+</head>
+<body>
+  <div class="page-loader" id="pageLoader"><div class="loader-spinner"></div></div>
+  <div id="navbar-container"></div>
+
+  <section style="padding-top:100px;padding-bottom:1rem;background:white;border-bottom:var(--border-light);">
+    <div class="container">
+      <nav aria-label="breadcrumb">
+        <ol class="breadcrumb mb-0" style="font-size:var(--fs-sm);">
+          <li class="breadcrumb-item"><a href="index.html">Home</a></li>
+          <li class="breadcrumb-item active">My Account</li>
+        </ol>
+      </nav>
+    </div>
+  </section>
+
+  <section class="section-padding" style="padding-top:2rem;">
+    <div class="container">
+      <!-- Auth Section (Login/Register) -->
+      <div id="authSection">
+        <div class="row justify-content-center">
+          <div class="col-lg-5 col-md-7">
+            <div class="glass-card">
+              <!-- Toggle -->
+              <div class="d-flex mb-4" style="border-bottom:2px solid var(--gray-200);">
+                <button class="flex-fill text-center py-2 border-0 bg-transparent fw-bold" id="loginTab" onclick="showTab('login')" style="border-bottom:3px solid var(--primary-500);color:var(--primary-600);">
+                  <i class="fas fa-sign-in-alt me-1"></i> Login
+                </button>
+                <button class="flex-fill text-center py-2 border-0 bg-transparent fw-500 text-muted" id="registerTab" onclick="showTab('register')">
+                  <i class="fas fa-user-plus me-1"></i> Register
+                </button>
+              </div>
+
+              <!-- Login Form -->
+              <form id="loginForm" onsubmit="handleLogin(event)">
+                <div class="mb-3">
+                  <label class="form-label-custom">Email Address</label>
+                  <input type="email" class="form-control-custom" id="loginEmail" required placeholder="your@email.com">
+                </div>
+                <div class="mb-4">
+                  <label class="form-label-custom">Password</label>
+                  <input type="password" class="form-control-custom" id="loginPassword" required placeholder="Enter password">
+                </div>
+                <button type="submit" class="btn-primary-custom w-100 justify-content-center" id="loginBtn">
+                  <i class="fas fa-sign-in-alt me-1"></i> Login
+                </button>
+                <div class="text-center mt-3">
+                  <small class="text-muted">Demo: <code>rajesh@example.com</code> / <code>customer123</code></small>
+                </div>
+              </form>
+
+              <!-- Register Form -->
+              <form id="registerForm" onsubmit="handleRegister(event)" style="display:none;">
+                <div class="mb-3">
+                  <label class="form-label-custom">Full Name</label>
+                  <input type="text" class="form-control-custom" id="regName" required placeholder="Enter your full name">
+                </div>
+                <div class="mb-3">
+                  <label class="form-label-custom">Email Address</label>
+                  <input type="email" class="form-control-custom" id="regEmail" required placeholder="your@email.com">
+                </div>
+                <div class="mb-3">
+                  <label class="form-label-custom">Phone Number</label>
+                  <input type="tel" class="form-control-custom" id="regPhone" placeholder="10-digit number">
+                </div>
+                <div class="mb-4">
+                  <label class="form-label-custom">Password (min 6 chars)</label>
+                  <input type="password" class="form-control-custom" id="regPassword" required placeholder="Create password" minlength="6">
+                </div>
+                <button type="submit" class="btn-primary-custom w-100 justify-content-center" id="regBtn">
+                  <i class="fas fa-user-plus me-1"></i> Create Account
+                </button>
+              </form>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Profile Section (when logged in) -->
+      <div id="profileSection" style="display:none;">
+        <div class="row g-4">
+          <div class="col-lg-4">
+            <div class="glass-card text-center">
+              <div style="width:100px;height:100px;border-radius:50%;background:var(--gradient-primary);display:flex;align-items:center;justify-content:center;margin:0 auto 1rem;font-size:2.5rem;color:white;font-weight:800;" id="profileAvatar">
+              </div>
+              <h4 id="profileName"></h4>
+              <p class="text-muted" id="profileEmail"></p>
+              <span class="status-badge status-delivered mb-3" id="profileRole"></span>
+              <hr>
+              <div class="text-start" style="font-size:var(--fs-sm);">
+                <p><i class="fas fa-phone me-2 text-muted"></i><span id="profilePhone">Not set</span></p>
+                <p><i class="fas fa-calendar me-2 text-muted"></i>Member since <span id="profileSince"></span></p>
+              </div>
+              <button class="btn-outline-custom w-100 mt-2 justify-content-center" onclick="Auth.logout()">
+                <i class="fas fa-sign-out-alt me-1"></i> Logout
+              </button>
+            </div>
+          </div>
+          <div class="col-lg-8">
+            <!-- Edit Profile -->
+            <div class="glass-card mb-4">
+              <h5 class="mb-3"><i class="fas fa-user-edit me-2 text-gradient"></i>Edit Profile</h5>
+              <form onsubmit="updateProfile(event)">
+                <div class="row g-3">
+                  <div class="col-md-6">
+                    <label class="form-label-custom">Full Name</label>
+                    <input type="text" class="form-control-custom" id="editName" required>
+                  </div>
+                  <div class="col-md-6">
+                    <label class="form-label-custom">Phone</label>
+                    <input type="tel" class="form-control-custom" id="editPhone">
+                  </div>
+                  <div class="col-12">
+                    <label class="form-label-custom">Email</label>
+                    <input type="email" class="form-control-custom" id="editEmail" required>
+                  </div>
+                </div>
+                <button type="submit" class="btn-primary-custom mt-3"><i class="fas fa-save me-1"></i> Save Changes</button>
+              </form>
+            </div>
+
+            <!-- Change Password -->
+            <div class="glass-card mb-4">
+              <h5 class="mb-3"><i class="fas fa-lock me-2 text-gradient"></i>Change Password</h5>
+              <form onsubmit="changePassword(event)">
+                <div class="row g-3">
+                  <div class="col-md-6">
+                    <label class="form-label-custom">Current Password</label>
+                    <input type="password" class="form-control-custom" id="currentPass" required>
+                  </div>
+                  <div class="col-md-6">
+                    <label class="form-label-custom">New Password</label>
+                    <input type="password" class="form-control-custom" id="newPass" required minlength="6">
+                  </div>
+                </div>
+                <button type="submit" class="btn-outline-custom mt-3"><i class="fas fa-key me-1"></i> Change Password</button>
+              </form>
+            </div>
+
+            <!-- Quick Links -->
+            <div class="row g-3">
+              <div class="col-md-4">
+                <a href="orders.html" class="text-decoration-none">
+                  <div class="glass-card text-center p-3">
+                    <i class="fas fa-box text-primary mb-2" style="font-size:1.5rem;"></i>
+                    <h6 class="mb-0">My Orders</h6>
+                  </div>
+                </a>
+              </div>
+              <div class="col-md-4">
+                <a href="cart.html" class="text-decoration-none">
+                  <div class="glass-card text-center p-3">
+                    <i class="fas fa-shopping-cart text-success mb-2" style="font-size:1.5rem;"></i>
+                    <h6 class="mb-0">My Cart</h6>
+                  </div>
+                </a>
+              </div>
+              <div class="col-md-4" id="adminLink" style="display:none;">
+                <a href="admin/dashboard.html" class="text-decoration-none">
+                  <div class="glass-card text-center p-3">
+                    <i class="fas fa-tachometer-alt text-warning mb-2" style="font-size:1.5rem;"></i>
+                    <h6 class="mb-0">Admin Panel</h6>
+                  </div>
+                </a>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <div id="footer-container"></div>
+
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+  <script src="js/utils.js"></script>
+  <script src="js/seed-data.js"></script>
+  <script src="js/auth.js"></script>
+  <script src="js/app.js"></script>
+
+  <script>
+    document.addEventListener('DOMContentLoaded', () => {
+      App.init();
+      document.getElementById('navbar-container').innerHTML = App.getNavbarHTML('profile');
+      document.getElementById('footer-container').innerHTML = App.getFooterHTML();
+
+      if (Auth.isLoggedIn()) {
+        showProfile();
+      }
+    });
+
+    function showTab(tab) {
+      const loginForm = document.getElementById('loginForm');
+      const registerForm = document.getElementById('registerForm');
+      const loginTab = document.getElementById('loginTab');
+      const registerTab = document.getElementById('registerTab');
+
+      if (tab === 'login') {
+        loginForm.style.display = 'block';
+        registerForm.style.display = 'none';
+        loginTab.style.borderBottom = '3px solid var(--primary-500)';
+        loginTab.style.color = 'var(--primary-600)';
+        loginTab.classList.add('fw-bold');
+        registerTab.style.borderBottom = 'none';
+        registerTab.style.color = 'var(--text-muted)';
+        registerTab.classList.remove('fw-bold');
+      } else {
+        loginForm.style.display = 'none';
+        registerForm.style.display = 'block';
+        registerTab.style.borderBottom = '3px solid var(--primary-500)';
+        registerTab.style.color = 'var(--primary-600)';
+        registerTab.classList.add('fw-bold');
+        loginTab.style.borderBottom = 'none';
+        loginTab.style.color = 'var(--text-muted)';
+        loginTab.classList.remove('fw-bold');
+      }
+    }
+
+    async function handleLogin(e) {
+      e.preventDefault();
+      const btn = document.getElementById('loginBtn');
+      btn.disabled = true;
+      btn.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i> Logging in...';
+
+      const email = document.getElementById('loginEmail').value;
+      const password = document.getElementById('loginPassword').value;
+
+      const result = await Auth.login(email, password);
+      
+      if (result.success) {
+        Utils.showToast(result.message, 'success');
+        setTimeout(() => {
+          showProfile();
+          document.getElementById('navbar-container').innerHTML = App.getNavbarHTML('profile');
+        }, 500);
+      } else {
+        Utils.showToast(result.message, 'error');
+        btn.disabled = false;
+        btn.innerHTML = '<i class="fas fa-sign-in-alt me-1"></i> Login';
+      }
+    }
+
+    async function handleRegister(e) {
+      e.preventDefault();
+      const btn = document.getElementById('regBtn');
+      btn.disabled = true;
+      btn.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i> Creating...';
+
+      const userData = {
+        name: document.getElementById('regName').value,
+        email: document.getElementById('regEmail').value,
+        phone: document.getElementById('regPhone').value,
+        password: document.getElementById('regPassword').value
+      };
+
+      const result = await Auth.register(userData);
+      
+      if (result.success) {
+        Utils.showToast(result.message, 'success');
+        setTimeout(() => {
+          showProfile();
+          document.getElementById('navbar-container').innerHTML = App.getNavbarHTML('profile');
+        }, 500);
+      } else {
+        Utils.showToast(result.message, 'error');
+        btn.disabled = false;
+        btn.innerHTML = '<i class="fas fa-user-plus me-1"></i> Create Account';
+      }
+    }
+
+    function showProfile() {
+      const user = Auth.getCurrentUser();
+      if (!user) return;
+
+      document.getElementById('authSection').style.display = 'none';
+      document.getElementById('profileSection').style.display = 'block';
+
+      document.getElementById('profileAvatar').textContent = user.name.charAt(0).toUpperCase();
+      document.getElementById('profileName').textContent = user.name;
+      document.getElementById('profileEmail').textContent = user.email;
+      document.getElementById('profileRole').innerHTML = `<i class="fas fa-${user.role === 'admin' ? 'crown' : 'user'} me-1"></i>${user.role.charAt(0).toUpperCase() + user.role.slice(1)}`;
+      document.getElementById('profilePhone').textContent = user.phone || 'Not set';
+      document.getElementById('profileSince').textContent = Utils.formatDate(user.created_at);
+
+      // Edit fields
+      document.getElementById('editName').value = user.name;
+      document.getElementById('editEmail').value = user.email;
+      document.getElementById('editPhone').value = user.phone || '';
+
+      // Show admin link if admin
+      if (user.role === 'admin') {
+        document.getElementById('adminLink').style.display = 'block';
+      }
+    }
+
+    function updateProfile(e) {
+      e.preventDefault();
+      const result = Auth.updateProfile({
+        name: document.getElementById('editName').value.trim(),
+        email: document.getElementById('editEmail').value.trim(),
+        phone: document.getElementById('editPhone').value.trim()
+      });
+
+      Utils.showToast(result.message, result.success ? 'success' : 'error');
+      if (result.success) {
+        showProfile();
+        document.getElementById('navbar-container').innerHTML = App.getNavbarHTML('profile');
+      }
+    }
+
+    async function changePassword(e) {
+      e.preventDefault();
+      const current = document.getElementById('currentPass').value;
+      const newPass = document.getElementById('newPass').value;
+
+      const result = await Auth.changePassword(current, newPass);
+      Utils.showToast(result.message, result.success ? 'success' : 'error');
+
+      if (result.success) {
+        document.getElementById('currentPass').value = '';
+        document.getElementById('newPass').value = '';
+      }
+    }
+  </script>
+</body>
+</html>

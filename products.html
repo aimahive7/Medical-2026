@@ -1,0 +1,274 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="Browse genuine medicines, supplements, medical devices and health products at SHOBHA MEDICAL STORES. Search, filter, and order online.">
+  <title>Products — SHOBHA MEDICAL STORES</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" rel="stylesheet">
+  <link href="style.css" rel="stylesheet">
+</head>
+<body>
+  <div class="page-loader" id="pageLoader"><div class="loader-spinner"></div></div>
+  <div id="navbar-container"></div>
+
+  <!-- Breadcrumb -->
+  <section style="padding-top:100px;padding-bottom:1rem;background:white;border-bottom:var(--border-light);">
+    <div class="container">
+      <nav aria-label="breadcrumb">
+        <ol class="breadcrumb mb-0" style="font-size:var(--fs-sm);">
+          <li class="breadcrumb-item"><a href="index.html">Home</a></li>
+          <li class="breadcrumb-item active" id="breadcrumbCategory">Products</li>
+        </ol>
+      </nav>
+    </div>
+  </section>
+
+  <!-- Products Section -->
+  <section class="section-padding" style="padding-top:2rem;">
+    <div class="container">
+      <div class="row">
+        <!-- Sidebar Filters -->
+        <div class="col-lg-3 mb-4">
+          <div class="glass-card" style="position:sticky;top:100px;">
+            <h5 class="mb-3"><i class="fas fa-filter me-2"></i>Filters</h5>
+            
+            <!-- Search -->
+            <div class="mb-3">
+              <label class="form-label-custom">Search</label>
+              <input type="text" class="form-control-custom" id="searchInput" placeholder="Search products..." oninput="applyFilters()">
+            </div>
+
+            <!-- Category -->
+            <div class="mb-3">
+              <label class="form-label-custom">Category</label>
+              <select class="form-control-custom" id="categoryFilter" onchange="applyFilters()">
+                <option value="all">All Categories</option>
+              </select>
+            </div>
+
+            <!-- Price Range -->
+            <div class="mb-3">
+              <label class="form-label-custom">Price Range</label>
+              <div class="d-flex gap-2">
+                <input type="number" class="form-control-custom" id="minPrice" placeholder="Min" oninput="applyFilters()">
+                <input type="number" class="form-control-custom" id="maxPrice" placeholder="Max" oninput="applyFilters()">
+              </div>
+            </div>
+
+            <!-- Stock Status -->
+            <div class="mb-3">
+              <label class="form-label-custom">Availability</label>
+              <select class="form-control-custom" id="stockFilter" onchange="applyFilters()">
+                <option value="all">All</option>
+                <option value="in-stock">In Stock</option>
+                <option value="low-stock">Low Stock</option>
+                <option value="out-of-stock">Out of Stock</option>
+              </select>
+            </div>
+
+            <!-- Sort -->
+            <div class="mb-3">
+              <label class="form-label-custom">Sort By</label>
+              <select class="form-control-custom" id="sortFilter" onchange="applyFilters()">
+                <option value="">Default</option>
+                <option value="price-asc">Price: Low to High</option>
+                <option value="price-desc">Price: High to Low</option>
+                <option value="name-asc">Name: A to Z</option>
+                <option value="name-desc">Name: Z to A</option>
+                <option value="newest">Newest First</option>
+              </select>
+            </div>
+
+            <button class="btn-outline-custom w-100 btn-sm-custom" onclick="clearFilters()">
+              <i class="fas fa-times me-1"></i> Clear Filters
+            </button>
+          </div>
+        </div>
+
+        <!-- Products Grid -->
+        <div class="col-lg-9">
+          <!-- Results Header -->
+          <div class="d-flex align-items-center justify-content-between mb-3 flex-wrap gap-2">
+            <h4 class="mb-0" id="resultsTitle">All Products</h4>
+            <span class="text-muted" id="resultsCount" style="font-size:var(--fs-sm);"></span>
+          </div>
+
+          <!-- Quick Filter Pills -->
+          <div class="filter-pills mb-3" id="quickFilters">
+            <button class="filter-pill active" onclick="quickFilter('all', this)">All</button>
+            <button class="filter-pill" onclick="quickFilter('Medicines', this)">💊 Medicines</button>
+            <button class="filter-pill" onclick="quickFilter('Supplements', this)">💊 Supplements</button>
+            <button class="filter-pill" onclick="quickFilter('Medical Devices', this)">🩺 Devices</button>
+            <button class="filter-pill" onclick="quickFilter('Personal Care', this)">🧴 Personal Care</button>
+            <button class="filter-pill" onclick="quickFilter('Baby Care', this)">👶 Baby Care</button>
+            <button class="filter-pill" onclick="quickFilter('Ayurvedic', this)">🌿 Ayurvedic</button>
+          </div>
+
+          <div class="row" id="productsGrid">
+            <!-- Products loaded dynamically -->
+          </div>
+
+          <!-- Pagination -->
+          <nav id="paginationNav" class="mt-4">
+            <ul class="pagination justify-content-center" id="paginationList">
+            </ul>
+          </nav>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <div id="footer-container"></div>
+
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+  <script src="js/utils.js"></script>
+  <script src="js/seed-data.js"></script>
+  <script src="js/auth.js"></script>
+  <script src="js/app.js"></script>
+
+  <script>
+    const PRODUCTS_PER_PAGE = 12;
+    let currentPage = 1;
+
+    document.addEventListener('DOMContentLoaded', () => {
+      App.init();
+      document.getElementById('navbar-container').innerHTML = App.getNavbarHTML('products');
+      document.getElementById('footer-container').innerHTML = App.getFooterHTML();
+      
+      // Populate category filter
+      const categories = App.getCategories();
+      const categorySelect = document.getElementById('categoryFilter');
+      categories.forEach(cat => {
+        const opt = document.createElement('option');
+        opt.value = cat;
+        opt.textContent = cat;
+        categorySelect.appendChild(opt);
+      });
+
+      // Check URL params
+      const urlCategory = Utils.getUrlParam('category');
+      const urlSearch = Utils.getUrlParam('search');
+      
+      if (urlCategory) {
+        document.getElementById('categoryFilter').value = urlCategory;
+        document.getElementById('breadcrumbCategory').textContent = urlCategory;
+        // Activate matching quick filter
+        document.querySelectorAll('#quickFilters .filter-pill').forEach(p => {
+          p.classList.remove('active');
+          if (p.textContent.includes(urlCategory)) p.classList.add('active');
+        });
+      }
+      if (urlSearch) {
+        document.getElementById('searchInput').value = urlSearch;
+      }
+
+      applyFilters();
+    });
+
+    function applyFilters() {
+      const filters = {
+        customerView: true,
+        search: document.getElementById('searchInput').value.trim(),
+        category: document.getElementById('categoryFilter').value,
+        stockStatus: document.getElementById('stockFilter').value === 'all' ? undefined : document.getElementById('stockFilter').value,
+        sort: document.getElementById('sortFilter').value || undefined
+      };
+
+      const minPrice = document.getElementById('minPrice').value;
+      const maxPrice = document.getElementById('maxPrice').value;
+      if (minPrice) filters.minPrice = parseFloat(minPrice);
+      if (maxPrice) filters.maxPrice = parseFloat(maxPrice);
+
+      const allProducts = App.getProducts(filters);
+      
+      // Update results count
+      document.getElementById('resultsCount').textContent = `${allProducts.length} product${allProducts.length !== 1 ? 's' : ''} found`;
+
+      // Update title
+      const cat = filters.category !== 'all' ? filters.category : 'All Products';
+      document.getElementById('resultsTitle').textContent = filters.search ? `Results for "${filters.search}"` : cat;
+
+      // Pagination
+      const totalPages = Math.ceil(allProducts.length / PRODUCTS_PER_PAGE);
+      if (currentPage > totalPages) currentPage = 1;
+
+      const start = (currentPage - 1) * PRODUCTS_PER_PAGE;
+      const pageProducts = allProducts.slice(start, start + PRODUCTS_PER_PAGE);
+
+      // Render
+      const grid = document.getElementById('productsGrid');
+      if (pageProducts.length === 0) {
+        grid.innerHTML = `
+          <div class="col-12">
+            <div class="empty-state">
+              <i class="fas fa-search"></i>
+              <h4>No products found</h4>
+              <p>Try adjusting your filters or search term to find what you're looking for.</p>
+              <button class="btn-primary-custom" onclick="clearFilters()">Clear Filters</button>
+            </div>
+          </div>`;
+        document.getElementById('paginationList').innerHTML = '';
+        return;
+      }
+
+      grid.innerHTML = pageProducts.map(p => App.renderProductCard(p)).join('');
+      renderPagination(totalPages);
+    }
+
+    function renderPagination(totalPages) {
+      if (totalPages <= 1) {
+        document.getElementById('paginationList').innerHTML = '';
+        return;
+      }
+
+      let html = `
+        <li class="page-item ${currentPage === 1 ? 'disabled' : ''}">
+          <a class="page-link" href="#" onclick="goToPage(${currentPage - 1}); return false;">Previous</a>
+        </li>`;
+      
+      for (let i = 1; i <= totalPages; i++) {
+        html += `
+          <li class="page-item ${i === currentPage ? 'active' : ''}">
+            <a class="page-link" href="#" onclick="goToPage(${i}); return false;">${i}</a>
+          </li>`;
+      }
+
+      html += `
+        <li class="page-item ${currentPage === totalPages ? 'disabled' : ''}">
+          <a class="page-link" href="#" onclick="goToPage(${currentPage + 1}); return false;">Next</a>
+        </li>`;
+
+      document.getElementById('paginationList').innerHTML = html;
+    }
+
+    function goToPage(page) {
+      currentPage = page;
+      applyFilters();
+      Utils.scrollToTop();
+    }
+
+    function quickFilter(category, btn) {
+      document.querySelectorAll('#quickFilters .filter-pill').forEach(p => p.classList.remove('active'));
+      btn.classList.add('active');
+      document.getElementById('categoryFilter').value = category === 'all' ? 'all' : category;
+      currentPage = 1;
+      applyFilters();
+    }
+
+    function clearFilters() {
+      document.getElementById('searchInput').value = '';
+      document.getElementById('categoryFilter').value = 'all';
+      document.getElementById('minPrice').value = '';
+      document.getElementById('maxPrice').value = '';
+      document.getElementById('stockFilter').value = 'all';
+      document.getElementById('sortFilter').value = '';
+      document.querySelectorAll('#quickFilters .filter-pill').forEach(p => p.classList.remove('active'));
+      document.querySelector('#quickFilters .filter-pill').classList.add('active');
+      currentPage = 1;
+      applyFilters();
+    }
+  </script>
+</body>
+</html>
