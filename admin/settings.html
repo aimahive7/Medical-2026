@@ -70,6 +70,19 @@
                 <label class="form-label-custom">Working Hours</label>
                 <input type="text" class="form-control-custom" id="setHours">
               </div>
+              <div class="col-12"><hr class="my-2"><h6 class="text-muted mb-2"><i class="fas fa-file-invoice me-1"></i>Invoice / Bill Settings</h6></div>
+              <div class="col-md-6">
+                <label class="form-label-custom">D.L. Number (Drug License)</label>
+                <input type="text" class="form-control-custom" id="setDlNo" placeholder="e.g. 20-324111  21-324112">
+              </div>
+              <div class="col-md-6">
+                <label class="form-label-custom">FDL Number</label>
+                <input type="text" class="form-control-custom" id="setFdlNo" placeholder="e.g. 21519324000092">
+              </div>
+              <div class="col-md-6">
+                <label class="form-label-custom">Jurisdiction</label>
+                <input type="text" class="form-control-custom" id="setJurisdiction" placeholder="e.g. NANDED">
+              </div>
             </div>
             <button type="submit" class="btn-primary-custom mt-3"><i class="fas fa-save me-1"></i> Save Shop Info</button>
           </form>
@@ -243,6 +256,9 @@
       document.getElementById('setAddress').value = s.address || '';
       document.getElementById('setGstNumber').value = s.gst_number || '';
       document.getElementById('setHours').value = s.working_hours || '';
+      document.getElementById('setDlNo').value = s.dl_no || '';
+      document.getElementById('setFdlNo').value = s.fdl_no || '';
+      document.getElementById('setJurisdiction').value = s.jurisdiction || '';
       document.getElementById('setGstRate').value = s.gst_rate || 18;
       document.getElementById('setDeliveryCharge').value = s.delivery_charge || 40;
       document.getElementById('setFreeDelivery').value = s.free_delivery_above || 500;
@@ -265,7 +281,10 @@
         email: document.getElementById('setEmail').value.trim(),
         address: document.getElementById('setAddress').value.trim(),
         gst_number: document.getElementById('setGstNumber').value.trim(),
-        working_hours: document.getElementById('setHours').value.trim()
+        working_hours: document.getElementById('setHours').value.trim(),
+        dl_no: document.getElementById('setDlNo').value.trim(),
+        fdl_no: document.getElementById('setFdlNo').value.trim(),
+        jurisdiction: document.getElementById('setJurisdiction').value.trim()
       });
       Utils.showToast('Shop information saved', 'success');
     }

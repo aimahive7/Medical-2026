@@ -99,14 +99,39 @@
     </div>
   </div>
 
+  <!-- Invoice Preview Modal -->
+  <div class="modal fade" id="invoicePreviewModal" tabindex="-1">
+    <div class="modal-dialog modal-xl modal-dialog-centered modal-dialog-scrollable">
+      <div class="modal-content" style="background:#f0f0f0;">
+        <div class="modal-header" style="background:#1a1a2e;color:#fff;border:none;">
+          <h5 class="modal-title"><i class="fas fa-file-invoice me-2"></i>Invoice Preview</h5>
+          <div class="d-flex gap-2 ms-auto me-2">
+            <button class="btn btn-sm" style="background:#00c897;color:#fff;" onclick="printInvoiceFromPreview()">
+              <i class="fas fa-print me-1"></i> Print
+            </button>
+            <button class="btn btn-sm" style="background:#3b82f6;color:#fff;" onclick="downloadPDFFromPreview()">
+              <i class="fas fa-file-pdf me-1"></i> PDF
+            </button>
+          </div>
+          <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+        </div>
+        <div class="modal-body p-0">
+          <div id="invoicePreviewContainer" style="padding:20px;"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
   <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
   <script src="../js/utils.js"></script>
   <script src="../js/seed-data.js"></script>
   <script src="../js/auth.js"></script>
   <script src="../js/app.js"></script>
+  <script src="../js/invoice.js"></script>
 
   <script>
     let currentStatusFilter = 'all';
+    let currentPreviewOrderId = null;
 
     document.addEventListener('DOMContentLoaded', () => {
       SeedData.init();
@@ -128,12 +153,10 @@
       const dateFrom = document.getElementById('dateFrom').value;
       const dateTo = document.getElementById('dateTo').value;
 
-      // Status filter
       if (currentStatusFilter !== 'all') {
         orders = orders.filter(o => o.status === currentStatusFilter);
       }
 
-      // Search
       if (search) {
         orders = orders.filter(o =>
           (o.order_number || '').toLowerCase().includes(search) ||
@@ -142,7 +165,6 @@
         );
       }
 
-      // Date range
       if (dateFrom) {
         orders = orders.filter(o => new Date(o.created_at) >= new Date(dateFrom));
       }
@@ -152,7 +174,6 @@
         orders = orders.filter(o => new Date(o.created_at) <= to);
       }
 
-      // Sort newest first
       orders.sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
 
       document.getElementById('totalOrdersCount').textContent = `${orders.length} orders`;
@@ -175,10 +196,16 @@
               <td><span class="status-badge ${statusInfo.class}"><i class="fas ${statusInfo.icon} me-1"></i>${statusInfo.label}</span></td>
               <td>
                 <div class="d-flex gap-1">
-                  <button class="btn btn-sm btn-outline-primary" onclick="showOrderDetail('${order.id}')" title="View">
+                  <button class="btn btn-sm btn-outline-primary" onclick="showOrderDetail('${order.id}')" title="View Details">
                     <i class="fas fa-eye" style="font-size:0.7rem;"></i>
                   </button>
-                  <button class="btn btn-sm btn-outline-success" onclick="generateInvoice('${order.id}')" title="Invoice PDF">
+                  <button class="btn btn-sm btn-outline-warning" onclick="showInvoicePreview('${order.id}')" title="Invoice Preview">
+                    <i class="fas fa-file-invoice" style="font-size:0.7rem;"></i>
+                  </button>
+                  <button class="btn btn-sm btn-outline-info" onclick="Invoice.openPrintPreview('${order.id}')" title="Print Preview (New Window)">
+                    <i class="fas fa-print" style="font-size:0.7rem;"></i>
+                  </button>
+                  <button class="btn btn-sm btn-outline-success" onclick="Invoice.generatePDF('${order.id}')" title="Download PDF">
                     <i class="fas fa-file-pdf" style="font-size:0.7rem;"></i>
                   </button>
                 </div>
@@ -268,12 +295,24 @@
         footerHTML += `<div class="d-flex gap-2 flex-wrap">`;
         next.forEach(s => {
           const info = Utils.getOrderStatusInfo(s);
-          const btnClass = s === 'cancelled' ? 'btn-outline-danger' : 'btn-primary-custom btn-sm-custom';
+          const btnClass = s === 'cancelled' ? 'btn btn-sm btn-outline-danger' : 'btn-primary-custom btn-sm-custom';
           footerHTML += `<button class="${btnClass}" onclick="updateOrderStatus('${orderId}', '${s}')"><i class="fas ${info.icon} me-1"></i>Mark as ${info.label}</button>`;
         });
         footerHTML += `</div>`;
       }
-      footerHTML += `<button class="btn-outline-custom btn-sm-custom" onclick="generateInvoice('${orderId}')"><i class="fas fa-file-pdf me-1"></i>Generate Invoice</button>`;
+      footerHTML += `
+        <div class="d-flex gap-2">
+          <button class="btn btn-sm btn-outline-warning" onclick="bootstrap.Modal.getInstance(document.getElementById('orderModal')).hide(); showInvoicePreview('${orderId}')">
+            <i class="fas fa-file-invoice me-1"></i>Preview Bill
+          </button>
+          <button class="btn btn-sm btn-outline-info" onclick="Invoice.openPrintPreview('${orderId}')">
+            <i class="fas fa-print me-1"></i>Print
+          </button>
+          <button class="btn btn-sm btn-outline-success" onclick="Invoice.generatePDF('${orderId}')">
+            <i class="fas fa-file-pdf me-1"></i>PDF
+          </button>
+        </div>
+      `;
 
       document.getElementById('orderModalFooter').innerHTML = footerHTML;
       new bootstrap.Modal(document.getElementById('orderModal')).show();
@@ -291,113 +330,113 @@
       loadOrdersTable();
     }
 
-    function generateInvoice(orderId) {
+    /**
+     * Show inline invoice preview inside modal (Shobha Medical bill format)
+     */
+    function showInvoicePreview(orderId) {
       const order = App.getById('orders', orderId);
       if (!order) return;
 
-      const settings = App.getSettings();
-      const { jsPDF } = window.jspdf;
-      const doc = new jsPDF();
+      currentPreviewOrderId = orderId;
 
-      // Header
-      doc.setFontSize(20);
-      doc.setFont('helvetica', 'bold');
-      doc.text(settings.shop_name || 'SHOBHA MEDICAL STORES', 105, 25, { align: 'center' });
-
-      doc.setFontSize(10);
-      doc.setFont('helvetica', 'normal');
-      doc.text(settings.address || 'Pune, Maharashtra', 105, 32, { align: 'center' });
-      doc.text(`Phone: ${settings.phone || ''}  |  Email: ${settings.email || ''}`, 105, 38, { align: 'center' });
-      if (settings.gst_number) {
-        doc.text(`GSTIN: ${settings.gst_number}`, 105, 44, { align: 'center' });
+      // Generate invoice number if needed
+      if (!order.invoice_number) {
+        order.invoice_number = Utils.generateNumber('SL');
+        App.update('orders', orderId, { invoice_number: order.invoice_number });
       }
 
-      // Line
-      doc.setDrawColor(0, 200, 151);
-      doc.setLineWidth(1);
-      doc.line(15, 48, 195, 48);
+      const ccCopy = Invoice.generateBillHTML(order, 'C/C');
+      const ocCopy = Invoice.generateBillHTML(order, 'O/C');
 
-      // Invoice Info
-      doc.setFontSize(14);
-      doc.setFont('helvetica', 'bold');
-      doc.text('TAX INVOICE', 105, 58, { align: 'center' });
+      const previewCSS = `
+        <style>
+          @import url('https://fonts.googleapis.com/css2?family=Courier+Prime:wght@400;700&display=swap');
+          
+          .invoice-preview-page {
+            font-family: 'Courier Prime', 'Courier New', Courier, monospace;
+            font-size: 12px;
+            line-height: 1.4;
+            color: #000;
+            background: #fff;
+            max-width: 210mm;
+            margin: 0 auto;
+            padding: 8mm 12mm;
+            box-shadow: 0 2px 20px rgba(0,0,0,0.08);
+            border-radius: 4px;
+          }
 
-      const invoiceNum = Utils.generateNumber('INV');
-      doc.setFontSize(10);
-      doc.setFont('helvetica', 'normal');
-      doc.text(`Invoice #: ${invoiceNum}`, 15, 68);
-      doc.text(`Date: ${Utils.formatDate(new Date())}`, 15, 74);
-      doc.text(`Order #: ${order.order_number}`, 15, 80);
+          .bill-copy { padding: 4mm 0; }
 
-      doc.text(`Customer: ${order.customer_name || 'Guest'}`, 120, 68);
-      doc.text(`Email: ${order.customer_email || 'N/A'}`, 120, 74);
-      doc.text(`Phone: ${order.customer_phone || 'N/A'}`, 120, 80);
+          .bill-header { text-align: center; margin-bottom: 3mm; }
+          .shop-title { font-size: 18px; font-weight: 700; text-decoration: underline; letter-spacing: 1px; margin: 0 0 2px; }
+          .shop-address { font-size: 11px; margin: 0; }
 
-      // Table Header
-      let y = 92;
-      doc.setFillColor(0, 200, 151);
-      doc.rect(15, y - 5, 180, 8, 'F');
-      doc.setTextColor(255, 255, 255);
-      doc.setFont('helvetica', 'bold');
-      doc.setFontSize(9);
-      doc.text('#', 18, y);
-      doc.text('Product', 28, y);
-      doc.text('Qty', 120, y);
-      doc.text('Price', 140, y);
-      doc.text('Total', 170, y);
+          .bill-info-row { display: flex; justify-content: space-between; font-size: 11px; padding: 1px 0; }
+          .bill-info-row.center-row { justify-content: center; margin-bottom: 2mm; }
 
-      // Table Body
-      doc.setTextColor(0, 0, 0);
-      doc.setFont('helvetica', 'normal');
-      y += 10;
+          .dashed-line { border-top: 1px dashed #000; margin: 2mm 0; }
 
-      order.items.forEach((item, idx) => {
-        doc.text(String(idx + 1), 18, y);
-        doc.text(Utils.truncate(item.name, 40), 28, y);
-        doc.text(String(item.quantity), 122, y);
-        doc.text(`₹${item.price.toFixed(2)}`, 137, y);
-        doc.text(`₹${(item.price * item.quantity).toFixed(2)}`, 167, y);
-        y += 7;
-      });
+          .bill-info-block { font-size: 11px; margin: 1mm 0; }
+          .info-grid { display: flex; justify-content: space-between; }
+          .info-left-block { flex: 1; }
+          .info-right-block { text-align: right; min-width: 200px; }
+          .info-left-block p, .info-right-block p { margin: 1px 0; }
+          .indent { padding-left: 60px; }
 
-      // Line
-      doc.line(15, y, 195, y);
-      y += 8;
+          .bill-table { width: 100%; border-collapse: collapse; font-size: 11px; margin-top: 1mm; }
+          .bill-table thead tr { border-bottom: 1px dashed #000; border-top: 1px dashed #000; }
+          .bill-table th { text-align: left; padding: 2px 4px; font-weight: 700; font-size: 10px; }
+          .bill-table td { padding: 2px 4px; vertical-align: top; }
+          .bill-table .text-right { text-align: right; }
+          .bill-table .text-center { text-align: center; }
+          .bill-table .item-name { max-width: 140px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+          .bill-table .empty-row td { height: 16px; }
 
-      // Totals
-      doc.text('Subtotal:', 140, y);
-      doc.text(`₹${order.subtotal.toFixed(2)}`, 170, y);
-      y += 7;
-      doc.text(`GST (${settings.gst_rate || 18}%):`, 140, y);
-      doc.text(`₹${order.tax.toFixed(2)}`, 170, y);
-      y += 7;
+          .col-sno { width: 6%; } .col-name { width: 26%; } .col-pkg { width: 10%; }
+          .col-mfg { width: 11%; } .col-batch { width: 14%; } .col-expiry { width: 10%; }
+          .col-qty { width: 8%; text-align: center; } .col-amount { width: 15%; text-align: right; }
 
-      doc.setFont('helvetica', 'bold');
-      doc.setFontSize(12);
-      doc.text('TOTAL:', 140, y);
-      doc.text(`₹${order.total.toFixed(2)}`, 167, y);
+          .bill-spacer { height: 10mm; }
+          .bill-totals { display: flex; justify-content: space-between; font-size: 12px; padding: 2mm 0; }
 
-      // Footer
-      y += 20;
-      doc.setFont('helvetica', 'normal');
-      doc.setFontSize(9);
-      doc.setTextColor(100, 100, 100);
-      doc.text('Payment: ' + (order.payment_method || 'N/A'), 15, y);
-      y += 10;
-      doc.text('Thank you for shopping with SHOBHA MEDICAL STORES!', 105, y, { align: 'center' });
-      y += 5;
-      doc.text('This is a computer-generated invoice and does not require a signature.', 105, y, { align: 'center' });
+          .bill-footer { display: flex; justify-content: space-between; align-items: flex-end; font-size: 10px; margin-top: 3mm; padding-bottom: 2mm; }
+          .footer-note { font-weight: 700; font-size: 9px; margin-bottom: 2px; }
+          .footer-jurisdiction { font-size: 9px; }
+          .pharmacist-label { font-weight: 700; font-size: 11px; text-align: right; }
 
-      // Save invoice record
-      App.add('invoices', {
-        id: Utils.generateId(),
-        order_id: orderId,
-        invoice_number: invoiceNum,
-        created_at: new Date().toISOString()
-      });
+          .bill-separator { border-top: 1px solid #000; margin: 6mm 0; position: relative; }
+          .bill-separator::after { content: '✂'; position: absolute; top: -10px; left: 50%; transform: translateX(-50%); background: white; padding: 0 8px; font-size: 14px; }
+        </style>
+      `;
 
-      doc.save(`Invoice_${invoiceNum}_${order.order_number}.pdf`);
-      Utils.showToast('Invoice PDF generated!', 'success');
+      document.getElementById('invoicePreviewContainer').innerHTML = `
+        ${previewCSS}
+        <div class="invoice-preview-page" id="invoicePreviewPage">
+          ${ccCopy}
+          <div class="bill-separator"></div>
+          ${ocCopy}
+        </div>
+      `;
+
+      new bootstrap.Modal(document.getElementById('invoicePreviewModal')).show();
+    }
+
+    /**
+     * Print from preview modal
+     */
+    function printInvoiceFromPreview() {
+      if (currentPreviewOrderId) {
+        Invoice.openPrintPreview(currentPreviewOrderId);
+      }
+    }
+
+    /**
+     * Download PDF from preview modal
+     */
+    function downloadPDFFromPreview() {
+      if (currentPreviewOrderId) {
+        Invoice.generatePDF(currentPreviewOrderId);
+      }
     }
   </script>
 </body>
