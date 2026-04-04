@@ -10,6 +10,9 @@ const Invoice = {
    */
   getShopInfo() {
     const s = App.getSettings();
+    // Clean jurisdiction in case it was stored with full phrase
+    let jurisdiction = s.jurisdiction || 'NANDED';
+    jurisdiction = jurisdiction.replace(/^Subject\s+to\s+/i, '').replace(/\s+Jurisdiction$/i, '').trim();
     return {
       name: s.shop_name || 'SHOBHA MEDICAL STORES',
       address: s.address || 'ND-41, SAMBHAJI CHOWK, CIDCO NANDED-431603.',
@@ -17,7 +20,7 @@ const Invoice = {
       dl_no: s.dl_no || '20-324111  21-324112',
       fdl_no: s.fdl_no || '21519324000092',
       gst_number: s.gst_number || '27AABCS1234A1ZV',
-      jurisdiction: s.jurisdiction || 'NANDED'
+      jurisdiction: jurisdiction
     };
   },
 
@@ -31,8 +34,14 @@ const Invoice = {
     const shop = this.getShopInfo();
     const invoiceNum = order.invoice_number || order.order_number;
     const billDate = Utils.formatDate(order.created_at);
-    const gross = order.total;
-    const net = order.subtotal;
+    const settings = App.getSettings();
+    const gstRate = settings.gst_rate || 18;
+
+    // Calculate breakdowns
+    const medicineSubtotal = order.subtotal || order.items.reduce((s, i) => s + (i.price * i.quantity), 0);
+    const gstAmount = order.tax || Utils.calculateTax(medicineSubtotal, gstRate);
+    const deliveryCharge = order.delivery_charge !== undefined ? order.delivery_charge : 0;
+    const grandTotal = order.total || (medicineSubtotal + gstAmount + deliveryCharge);
 
     let itemsHTML = '';
     order.items.forEach((item, idx) => {
@@ -51,8 +60,8 @@ const Invoice = {
       `;
     });
 
-    // Fill empty rows to maintain consistent height (minimum 8 rows)
-    const emptyRows = Math.max(0, 8 - order.items.length);
+    // Fill empty rows to maintain consistent height (minimum 6 rows)
+    const emptyRows = Math.max(0, 6 - order.items.length);
     for (let i = 0; i < emptyRows; i++) {
       itemsHTML += `<tr class="empty-row"><td>&nbsp;</td><td></td><td></td><td></td><td></td><td></td><td></td><td></td></tr>`;
     }
@@ -123,16 +132,31 @@ const Invoice = {
         <!-- Dashed Separator -->
         <div class="dashed-line"></div>
 
-        <!-- Empty space above totals -->
-        <div class="bill-spacer"></div>
+        <!-- Detailed Breakdown -->
+        <div class="bill-breakdown">
+          <div class="breakdown-row">
+            <span>Medicine Bill :</span>
+            <strong>${medicineSubtotal.toFixed(2)}</strong>
+          </div>
+          <div class="breakdown-row">
+            <span>GST (${gstRate}%) :</span>
+            <strong>${gstAmount.toFixed(2)}</strong>
+          </div>
+          <div class="breakdown-row">
+            <span>Delivery Charge :</span>
+            <strong>${deliveryCharge === 0 ? 'FREE' : deliveryCharge.toFixed(2)}</strong>
+          </div>
+        </div>
+
+        <div class="dashed-line"></div>
 
         <!-- Totals Row -->
         <div class="bill-totals">
           <div class="total-left">
-            <span>Gross: <strong>${gross.toFixed(2)}</strong></span>
+            <span>Gross: <strong>${grandTotal.toFixed(2)}</strong></span>
           </div>
           <div class="total-right">
-            <span>Net: <strong>${net.toFixed(2)}</strong></span>
+            <span>Net: <strong>${medicineSubtotal.toFixed(2)}</strong></span>
           </div>
         </div>
 
@@ -347,9 +371,20 @@ const Invoice = {
       .col-qty    { width: 8%; text-align: center; }
       .col-amount { width: 15%; text-align: right; }
 
-      /* Spacer */
-      .bill-spacer {
-        height: 10mm;
+      /* Breakdown Section */
+      .bill-breakdown {
+        padding: 2mm 0;
+        font-size: 11px;
+      }
+
+      .breakdown-row {
+        display: flex;
+        justify-content: space-between;
+        padding: 1px 0;
+      }
+
+      .breakdown-row span {
+        min-width: 140px;
       }
 
       /* Totals */
@@ -593,8 +628,15 @@ const Invoice = {
   drawBillCopy(doc, order, shop, startY, billType) {
     const leftX = 12;
     const rightX = 198;
-    const pageW = rightX - leftX;
     let y = startY;
+    const settings = App.getSettings();
+    const gstRate = settings.gst_rate || 18;
+
+    // Calculate breakdowns
+    const medicineSubtotal = order.subtotal || order.items.reduce((s, i) => s + (i.price * i.quantity), 0);
+    const gstAmount = order.tax || Utils.calculateTax(medicineSubtotal, gstRate);
+    const deliveryCharge = order.delivery_charge !== undefined ? order.delivery_charge : 0;
+    const grandTotal = order.total || (medicineSubtotal + gstAmount + deliveryCharge);
 
     // Use Courier-like font
     doc.setFont('courier', 'normal');
@@ -690,16 +732,35 @@ const Invoice = {
       y += 4;
     });
 
-    // ---- DASHED LINE ---- (before totals)
-    y = startY + (billType === 'C/C' ? 105 : 105);
+    // ---- DASHED LINE ---- (before breakdown)
+    y = startY + 90;
     this.drawDashedLine(doc, leftX, y, rightX);
-    y += 6;
+    y += 4;
+
+    // ---- CHARGE BREAKDOWN ----
+    doc.setFont('courier', 'normal');
+    doc.setFontSize(9);
+    doc.text('Medicine Bill :', leftX, y);
+    doc.text(medicineSubtotal.toFixed(2), rightX, y, { align: 'right' });
+    y += 4;
+
+    doc.text(`GST (${gstRate}%) :`, leftX, y);
+    doc.text(gstAmount.toFixed(2), rightX, y, { align: 'right' });
+    y += 4;
+
+    doc.text('Delivery Charge :', leftX, y);
+    doc.text(deliveryCharge === 0 ? 'FREE' : deliveryCharge.toFixed(2), rightX, y, { align: 'right' });
+    y += 4;
+
+    // ---- DASHED LINE ----
+    this.drawDashedLine(doc, leftX, y, rightX);
+    y += 4;
 
     // ---- TOTALS ----
     doc.setFontSize(10);
     doc.setFont('courier', 'bold');
-    doc.text(`Gross: ${order.total.toFixed(2)}`, leftX, y);
-    doc.text(`Net: ${order.subtotal.toFixed(2)}`, rightX, y, { align: 'right' });
+    doc.text(`Gross: ${grandTotal.toFixed(2)}`, leftX, y);
+    doc.text(`Net: ${medicineSubtotal.toFixed(2)}`, rightX, y, { align: 'right' });
     y += 4;
 
     // ---- DASHED LINE ----
