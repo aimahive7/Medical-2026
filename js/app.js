@@ -10,19 +10,19 @@ const App = {
   async init() {
     // Seed data on first visit
     await SeedData.init();
-    
+
     // Initialize auth state
     Auth.init();
-    
+
     // Update cart badge
     this.updateCartBadge();
-    
+
     // Setup navbar scroll effect
     this.setupNavbar();
-    
+
     // Setup page loader
     this.hideLoader();
-    
+
     // Log readiness
     console.log('🏥 Shobha Medical Stores — App initialized (v2)');
   },
@@ -311,7 +311,7 @@ const App = {
   addToCart(productId, quantity = 1) {
     const product = this.getById('products', productId);
     if (!product) return false;
-    
+
     const availableStock = this.getTotalStock(productId) || product.stock_qty;
     if (availableStock <= 0) {
       Utils.showToast('Product is out of stock', 'error');
@@ -383,16 +383,16 @@ const App = {
   getCartDetails() {
     const cart = this.getCart();
     const settings = this.getSettings();
-    
+
     const items = cart.items.map(item => {
       const product = this.getById('products', item.product_id);
       if (!product) return null;
-      
+
       const mrp = product.mrp || product.price;
       const gstRate = product.gst_rate || Utils.getDefaultGSTRate(product.category);
       const basePrice = Utils.calculateBasePrice(mrp, gstRate);
       const gstAmount = Utils.calculateGSTFromMRP(mrp, gstRate);
-      
+
       return {
         ...item,
         product: product,
@@ -476,10 +476,10 @@ const App = {
       const product = cartItem.product;
       const mrp = cartItem.mrp;
       const gstRate = cartItem.gst_rate;
-      
+
       // Try to allocate from batches
       const allocation = this.allocateBatches(product.id, cartItem.quantity);
-      
+
       if (allocation.allocations.length > 0) {
         // Add each allocated batch as a line item
         for (const alloc of allocation.allocations) {
@@ -487,7 +487,7 @@ const App = {
           const useGST = alloc.gst_rate || gstRate;
           const baseUnit = Utils.calculateBasePrice(useMRP, useGST);
           const gstUnit = Utils.calculateGSTFromMRP(useMRP, useGST);
-          
+
           billItems.push({
             product_id: product.id,
             batch_id: alloc.batch_id,
@@ -506,7 +506,7 @@ const App = {
         // No batches available — use product-level data
         const baseUnit = Utils.calculateBasePrice(mrp, gstRate);
         const gstUnit = Utils.calculateGSTFromMRP(mrp, gstRate);
-        
+
         billItems.push({
           product_id: product.id,
           batch_id: null,
@@ -558,7 +558,7 @@ const App = {
 
     this.add('bills', bill);
     this.clearCart();
-    
+
     return bill;
   },
 
@@ -916,7 +916,7 @@ const App = {
           <div class="col-lg-3 col-md-6">
             <h5>Contact Us</h5>
             <ul class="footer-links">
-              <li><a href="tel:${settings.phone || ''}"><i class="fas fa-phone"></i> ${settings.phone || '+91 9970 670610'}</a></li>
+              <li><a href="tel:${settings.phone || ''}"><i class="fas fa-phone"></i> ${settings.phone || '+91 9970670610'}</a></li>
               <li><a href="mailto:${settings.email || ''}"><i class="fas fa-envelope"></i> ${settings.email || 'shobhamedicalstores01@gmail.com'}</a></li>
               <li><a href="#"><i class="fas fa-map-marker-alt"></i> ${settings.address ? settings.address.split(',')[0] : 'Nanded, Maharashtra'}</a></li>
               <li><a href="#"><i class="fas fa-clock"></i> ${settings.working_hours ? settings.working_hours.split(',')[0] : 'Mon-Sat: 8AM-10PM'}</a></li>
@@ -924,7 +924,7 @@ const App = {
           </div>
         </div>
         <div class="footer-bottom">
-          <p>&copy; ${new Date().getFullYear()} SHOBHA MEDICAL STORES. All Rights Reserved. | Made with ❤️ by Sneha Vishwakarma</p>
+          <p>&copy; ${new Date().getFullYear()} SHOBHA MEDICAL STORES. All Rights Reserved.</p>
         </div>
       </div>
     </footer>`;
