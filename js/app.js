@@ -916,9 +916,9 @@ const App = {
           <div class="col-lg-3 col-md-6">
             <h5>Contact Us</h5>
             <ul class="footer-links">
-              <li><a href="tel:${settings.phone || ''}"><i class="fas fa-phone"></i> ${settings.phone || '+91 98765 43210'}</a></li>
-              <li><a href="mailto:${settings.email || ''}"><i class="fas fa-envelope"></i> ${settings.email || 'info@shobhamedical.com'}</a></li>
-              <li><a href="#"><i class="fas fa-map-marker-alt"></i> ${settings.address ? settings.address.split(',')[0] : 'Pune, Maharashtra'}</a></li>
+              <li><a href="tel:${settings.phone || ''}"><i class="fas fa-phone"></i> ${settings.phone || '+91 9970 670610'}</a></li>
+              <li><a href="mailto:${settings.email || ''}"><i class="fas fa-envelope"></i> ${settings.email || 'shobhamedicalstores01@gmail.com'}</a></li>
+              <li><a href="#"><i class="fas fa-map-marker-alt"></i> ${settings.address ? settings.address.split(',')[0] : 'Nanded, Maharashtra'}</a></li>
               <li><a href="#"><i class="fas fa-clock"></i> ${settings.working_hours ? settings.working_hours.split(',')[0] : 'Mon-Sat: 8AM-10PM'}</a></li>
             </ul>
           </div>

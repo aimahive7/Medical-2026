@@ -1,16 +1,21 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <meta name="description" content="Complete your order at SHOBHA MEDICAL STORES. Generate estimate, enter delivery details, and place your order.">
+  <meta name="description"
+    content="Complete your order at SHOBHA MEDICAL STORES. Generate estimate, enter delivery details, and place your order.">
   <title>Checkout — SHOBHA MEDICAL STORES</title>
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
   <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" rel="stylesheet">
   <link href="style.css" rel="stylesheet">
 </head>
+
 <body>
-  <div class="page-loader" id="pageLoader"><div class="loader-spinner"></div></div>
+  <div class="page-loader" id="pageLoader">
+    <div class="loader-spinner"></div>
+  </div>
   <div id="navbar-container"></div>
 
   <section style="padding-top:100px;padding-bottom:1rem;background:white;border-bottom:var(--border-light);">
@@ -31,15 +36,18 @@
       <div class="d-flex justify-content-center mb-5">
         <div class="d-flex align-items-center gap-3">
           <div class="d-flex align-items-center gap-2">
-            <span class="status-badge status-confirmed" id="step1Badge"><i class="fas fa-file-invoice me-1"></i>Estimate</span>
+            <span class="status-badge status-confirmed" id="step1Badge"><i
+                class="fas fa-file-invoice me-1"></i>Estimate</span>
           </div>
           <i class="fas fa-chevron-right text-muted"></i>
           <div class="d-flex align-items-center gap-2">
-            <span class="status-badge status-pending" id="step2Badge"><i class="fas fa-map-marker-alt me-1"></i>Delivery</span>
+            <span class="status-badge status-pending" id="step2Badge"><i
+                class="fas fa-map-marker-alt me-1"></i>Delivery</span>
           </div>
           <i class="fas fa-chevron-right text-muted"></i>
           <div class="d-flex align-items-center gap-2">
-            <span class="status-badge status-pending" id="step3Badge"><i class="fas fa-check-double me-1"></i>Confirm</span>
+            <span class="status-badge status-pending" id="step3Badge"><i
+                class="fas fa-check-double me-1"></i>Confirm</span>
           </div>
         </div>
       </div>
@@ -113,24 +121,28 @@
           <div class="col-lg-7">
             <div class="glass-card">
               <h4 class="mb-4"><i class="fas fa-map-marker-alt me-2 text-gradient"></i>Delivery Details</h4>
-              
+
               <form id="deliveryForm" onsubmit="return false;">
                 <div class="row g-3">
                   <div class="col-md-6">
                     <label class="form-label-custom">Full Name *</label>
-                    <input type="text" class="form-control-custom" id="customerName" required placeholder="Enter your name">
+                    <input type="text" class="form-control-custom" id="customerName" required
+                      placeholder="Enter your name">
                   </div>
                   <div class="col-md-6">
                     <label class="form-label-custom">Phone Number *</label>
-                    <input type="tel" class="form-control-custom" id="customerPhone" required placeholder="10-digit number">
+                    <input type="tel" class="form-control-custom" id="customerPhone" required
+                      placeholder="10-digit number">
                   </div>
                   <div class="col-12">
                     <label class="form-label-custom">Email Address *</label>
-                    <input type="email" class="form-control-custom" id="customerEmail" required placeholder="your@email.com">
+                    <input type="email" class="form-control-custom" id="customerEmail" required
+                      placeholder="your@email.com">
                   </div>
                   <div class="col-12">
                     <label class="form-label-custom">Address Line 1 *</label>
-                    <input type="text" class="form-control-custom" id="addressLine1" required placeholder="House/Flat No., Street">
+                    <input type="text" class="form-control-custom" id="addressLine1" required
+                      placeholder="House/Flat No., Street">
                   </div>
                   <div class="col-12">
                     <label class="form-label-custom">Address Line 2</label>
@@ -138,20 +150,23 @@
                   </div>
                   <div class="col-md-4">
                     <label class="form-label-custom">City *</label>
-                    <input type="text" class="form-control-custom" id="city" required placeholder="City" value="Pune">
+                    <input type="text" class="form-control-custom" id="city" required placeholder="City" value="Nanded">
                   </div>
                   <div class="col-md-4">
                     <label class="form-label-custom">State *</label>
-                    <input type="text" class="form-control-custom" id="state" required placeholder="State" value="Maharashtra">
+                    <input type="text" class="form-control-custom" id="state" required placeholder="State"
+                      value="Maharashtra">
                   </div>
                   <div class="col-md-4">
                     <label class="form-label-custom">Pincode *</label>
-                    <input type="text" class="form-control-custom" id="pincode" required placeholder="6-digit" maxlength="6">
+                    <input type="text" class="form-control-custom" id="pincode" required placeholder="6-digit"
+                      maxlength="6" value="431603">
                   </div>
                   <div class="col-12">
                     <label class="form-label-custom">Payment Method</label>
                     <div class="d-flex gap-3 flex-wrap">
-                      <label class="d-flex align-items-center gap-2 glass-card p-3 cursor-pointer" style="cursor:pointer;">
+                      <label class="d-flex align-items-center gap-2 glass-card p-3 cursor-pointer"
+                        style="cursor:pointer;">
                         <input type="radio" name="payment" value="COD" checked class="form-check-input">
                         <i class="fas fa-money-bill-wave text-success"></i>
                         <span class="fw-600">Cash on Delivery</span>
@@ -165,7 +180,8 @@
                   </div>
                   <div class="col-12">
                     <label class="form-label-custom">Order Notes (Optional)</label>
-                    <textarea class="form-control-custom" id="orderNotes" rows="2" placeholder="Any special instructions for delivery..."></textarea>
+                    <textarea class="form-control-custom" id="orderNotes" rows="2"
+                      placeholder="Any special instructions for delivery..."></textarea>
                   </div>
                 </div>
               </form>
@@ -189,7 +205,7 @@
           <div class="col-lg-7">
             <div class="glass-card text-center">
               <h4 class="mb-3"><i class="fas fa-clipboard-check me-2 text-gradient"></i>Confirm Your Order</h4>
-              
+
               <div id="confirmSummary" class="text-start mb-4">
                 <!-- Filled by JS -->
               </div>
@@ -212,18 +228,21 @@
         <div class="row justify-content-center">
           <div class="col-lg-6 text-center">
             <div class="glass-card" style="padding:3rem;">
-              <div style="width:100px;height:100px;border-radius:50%;background:var(--success-light);display:flex;align-items:center;justify-content:center;margin:0 auto 1.5rem;">
+              <div
+                style="width:100px;height:100px;border-radius:50%;background:var(--success-light);display:flex;align-items:center;justify-content:center;margin:0 auto 1.5rem;">
                 <i class="fas fa-check-double" style="font-size:3rem;color:var(--success);"></i>
               </div>
               <h2 style="color:var(--success);">Order Placed Successfully!</h2>
               <p class="text-muted mb-3">Your order has been received and is being processed.</p>
               <div class="glass-card mb-4" style="background:var(--gray-50);">
                 <h5>Order Number: <span class="text-gradient" id="successOrderNumber"></span></h5>
-                <p class="text-muted mb-0" style="font-size:var(--fs-sm);">Please save this number for tracking your order.</p>
+                <p class="text-muted mb-0" style="font-size:var(--fs-sm);">Please save this number for tracking your
+                  order.</p>
               </div>
               <div class="d-flex justify-content-center gap-3 flex-wrap">
                 <a href="orders.html" class="btn-primary-custom"><i class="fas fa-box me-1"></i> Track Order</a>
-                <a href="products.html" class="btn-outline-custom"><i class="fas fa-pills me-1"></i> Continue Shopping</a>
+                <a href="products.html" class="btn-outline-custom"><i class="fas fa-pills me-1"></i> Continue
+                  Shopping</a>
               </div>
             </div>
           </div>
@@ -263,9 +282,9 @@
         if (user.addresses && user.addresses.length > 0) {
           const addr = user.addresses[0];
           document.getElementById('addressLine1').value = addr.line1 || '';
-          document.getElementById('city').value = addr.city || 'Pune';
+          document.getElementById('city').value = addr.city || 'Nanded';
           document.getElementById('state').value = addr.state || 'Maharashtra';
-          document.getElementById('pincode').value = addr.pincode || '';
+          document.getElementById('pincode').value = addr.pincode || '431603';
         }
       }
 
@@ -295,7 +314,7 @@
 
       document.getElementById('estimateBody').innerHTML = bodyHTML;
       document.getElementById('estSubtotal').textContent = Utils.formatCurrency(cart.subtotal);
-      
+
       // GST breakdown by rate
       let gstHTML = '';
       cart.gstBreakdown.forEach(g => {
@@ -348,7 +367,7 @@
       document.getElementById('step1').style.display = step === 1 ? 'block' : 'none';
       document.getElementById('step2').style.display = step === 2 ? 'block' : 'none';
       document.getElementById('step3').style.display = step === 3 ? 'block' : 'none';
-      
+
       Utils.scrollToTop();
     }
 
@@ -462,4 +481,5 @@
     }
   </script>
 </body>
+
 </html>

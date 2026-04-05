@@ -237,7 +237,7 @@ const SeedData = {
       gst_rate: 18,
       low_stock_threshold: 10,
       phone: "9970670610",
-      email: "info@shobhamedical.com",
+      email: "shobhamedicalstores01@gmail.com",
       address: "ND-41, SAMBHAJI CHOWK, CIDCO NANDED-431603.",
       dl_no: "20-324111  21-324112",
       fdl_no: "21519324000092",
@@ -269,7 +269,7 @@ const SeedData = {
         email: "admin@shobha.com",
         password_hash: adminHash,
         role: "admin",
-        phone: "9876543210",
+        phone: "9970670610",
         addresses: [],
         created_at: new Date().toISOString()
       }
@@ -293,7 +293,7 @@ const SeedData = {
         password_hash: hash,
         role: "customer",
         phone: "9876543201",
-        addresses: [{ id: 1, label: "Home", line1: "42, MG Road", city: "Pune", state: "Maharashtra", pincode: "411001" }],
+        addresses: [{ id: 1, label: "Home", line1: "42, MG Road", city: "Nanded", state: "Maharashtra", pincode: "431603" }],
         created_at: new Date(Date.now() - 86400000 * 30).toISOString()
       },
       {
@@ -303,7 +303,7 @@ const SeedData = {
         password_hash: hash,
         role: "customer",
         phone: "9876543202",
-        addresses: [{ id: 1, label: "Home", line1: "15, FC Road", city: "Pune", state: "Maharashtra", pincode: "411004" }],
+        addresses: [{ id: 1, label: "Home", line1: "15, FC Road", city: "Nanded", state: "Maharashtra", pincode: "431603" }],
         created_at: new Date(Date.now() - 86400000 * 20).toISOString()
       },
       {
@@ -313,7 +313,7 @@ const SeedData = {
         password_hash: hash,
         role: "customer",
         phone: "9876543203",
-        addresses: [{ id: 1, label: "Home", line1: "78, Karve Road", city: "Pune", state: "Maharashtra", pincode: "411038" }],
+        addresses: [{ id: 1, label: "Home", line1: "78, Karve Road", city: "Nanded", state: "Maharashtra", pincode: "431603" }],
         created_at: new Date(Date.now() - 86400000 * 10).toISOString()
       }
     ];
@@ -363,7 +363,7 @@ const SeedData = {
       const daysAgo = (4 - i) * 3;
 
       orders.push({
-        id: `order_${i+1}`,
+        id: `order_${i + 1}`,
         order_number: Utils.generateNumber('ORD'),
         user_id: customer.id,
         customer_name: customer.name,
@@ -376,7 +376,7 @@ const SeedData = {
         total: subtotal + tax + (subtotal >= 500 ? 0 : 40),
         status: status,
         payment_method: i % 2 === 0 ? 'COD' : 'UPI',
-        address: customer.addresses[0] || { line1: 'N/A', city: 'Pune', state: 'Maharashtra', pincode: '411001' },
+        address: customer.addresses[0] || { line1: 'N/A', city: 'Nanded', state: 'Maharashtra', pincode: '431603' },
         notes: '',
         created_at: new Date(Date.now() - 86400000 * daysAgo).toISOString(),
         confirmed_at: new Date(Date.now() - 86400000 * (daysAgo - 1)).toISOString(),
