@@ -1107,11 +1107,19 @@ img {
 }
 
 .status-pending { background: var(--warning-light); color: #92400e; }
+.status-pending-approval { background: linear-gradient(135deg, #fef3c7, #fde68a); color: #92400e; border: 1px solid #fbbf24; animation: pulseApproval 2s ease-in-out infinite; }
+.status-approved { background: linear-gradient(135deg, #d1fae5, #a7f3d0); color: #065f46; border: 1px solid #34d399; }
+.status-rejected { background: linear-gradient(135deg, #fee2e2, #fecaca); color: #991b1b; border: 1px solid #f87171; }
 .status-confirmed { background: var(--info-light); color: #1e40af; }
 .status-packed { background: #e0e7ff; color: #3730a3; }
 .status-dispatched { background: #fce7f3; color: #9d174d; }
 .status-delivered { background: var(--success-light); color: #065f46; }
 .status-cancelled { background: var(--danger-light); color: #991b1b; }
+
+@keyframes pulseApproval {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(251, 191, 36, 0.4); }
+  50% { box-shadow: 0 0 0 6px rgba(251, 191, 36, 0); }
+}
 
 /* ============================================
    13. GLASSMORPHISM CARDS

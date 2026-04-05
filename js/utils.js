@@ -101,6 +101,9 @@ const Utils = {
   getOrderStatusInfo(status) {
     const statuses = {
       'pending': { label: 'Pending', class: 'status-pending', icon: 'fa-clock' },
+      'pending_approval': { label: 'Pending Approval', class: 'status-pending-approval', icon: 'fa-hourglass-half' },
+      'approved': { label: 'Approved', class: 'status-approved', icon: 'fa-check-circle' },
+      'rejected': { label: 'Rejected', class: 'status-rejected', icon: 'fa-times-circle' },
       'confirmed': { label: 'Confirmed', class: 'status-confirmed', icon: 'fa-check' },
       'packed': { label: 'Packed', class: 'status-packed', icon: 'fa-box' },
       'dispatched': { label: 'Dispatched', class: 'status-dispatched', icon: 'fa-truck' },
@@ -111,10 +114,73 @@ const Utils = {
   },
 
   /**
-   * Calculate tax
+   * Calculate tax (additive — old method kept for backward compat)
    */
   calculateTax(subtotal, rate = 18) {
     return (subtotal * rate) / 100;
+  },
+
+  /**
+   * Calculate base price from MRP (GST INCLUSIVE)
+   * Formula: Base = MRP / (1 + GST%/100)
+   */
+  calculateBasePrice(mrp, gstRate) {
+    if (!gstRate || gstRate <= 0) return mrp;
+    return mrp / (1 + gstRate / 100);
+  },
+
+  /**
+   * Calculate GST amount from MRP (GST INCLUSIVE)
+   * Formula: GST = MRP - Base
+   */
+  calculateGSTFromMRP(mrp, gstRate) {
+    if (!gstRate || gstRate <= 0) return 0;
+    return mrp - this.calculateBasePrice(mrp, gstRate);
+  },
+
+  /**
+   * Get default GST rate by product category
+   */
+  getDefaultGSTRate(category) {
+    const rates = {
+      'Medicines': 5,
+      'Supplements': 5,
+      'Medical Devices': 18,
+      'Personal Care': 18,
+      'Baby Care': 5,
+      'Ayurvedic': 5,
+      'Surgical': 18
+    };
+    return rates[category] || 12;
+  },
+
+  /**
+   * Check if a date is expired (past today)
+   */
+  isExpired(dateStr) {
+    if (!dateStr) return false;
+    const expiry = new Date(dateStr);
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    return expiry < today;
+  },
+
+  /**
+   * Check if expiring within N months (default 3)
+   */
+  isExpiringSoon(dateStr, months = 3) {
+    if (!dateStr) return false;
+    const expiry = new Date(dateStr);
+    const threshold = new Date();
+    threshold.setMonth(threshold.getMonth() + months);
+    return expiry <= threshold && !this.isExpired(dateStr);
+  },
+
+  /**
+   * Format GST rate display
+   */
+  formatGSTRate(rate) {
+    return `${parseFloat(rate)}%`;
   },
 
   /**

@@ -79,15 +79,12 @@
 
               <div class="doc-total">
                 <div class="d-flex justify-content-between mb-2" style="font-size:var(--fs-sm);">
-                  <span>Subtotal</span>
+                  <span>Base Amount</span>
                   <span id="estSubtotal"></span>
                 </div>
+                <div id="estGSTBreakdown"></div>
                 <div class="d-flex justify-content-between mb-2" style="font-size:var(--fs-sm);">
-                  <span>GST (<span id="estTaxRate"></span>%)</span>
-                  <span id="estTax"></span>
-                </div>
-                <div class="d-flex justify-content-between mb-2" style="font-size:var(--fs-sm);">
-                  <span>Delivery</span>
+                  <span>Delivery <small class="text-muted">(billed separately)</small></span>
                   <span id="estDelivery"></span>
                 </div>
                 <hr>
@@ -287,10 +284,10 @@
             <td>${idx + 1}</td>
             <td>
               <strong>${Utils.sanitize(item.product.name)}</strong>
-              <br><small class="text-muted">${Utils.sanitize(item.product.category)}</small>
+              <br><small class="text-muted">${Utils.sanitize(item.product.category)} | GST ${item.gst_rate}%</small>
             </td>
             <td class="text-center">${item.quantity}</td>
-            <td class="text-end">${Utils.formatCurrency(item.product.price)}</td>
+            <td class="text-end">${Utils.formatCurrency(item.mrp)}</td>
             <td class="text-end">${Utils.formatCurrency(item.subtotal)}</td>
           </tr>
         `;
@@ -298,8 +295,18 @@
 
       document.getElementById('estimateBody').innerHTML = bodyHTML;
       document.getElementById('estSubtotal').textContent = Utils.formatCurrency(cart.subtotal);
-      document.getElementById('estTaxRate').textContent = cart.taxRate;
-      document.getElementById('estTax').textContent = Utils.formatCurrency(cart.tax);
+      
+      // GST breakdown by rate
+      let gstHTML = '';
+      cart.gstBreakdown.forEach(g => {
+        gstHTML += `
+          <div class="d-flex justify-content-between mb-1" style="font-size:var(--fs-sm);">
+            <span>GST @ ${g.rate}% <small class="text-muted">(on ${Utils.formatCurrency(g.taxable)})</small></span>
+            <span>${Utils.formatCurrency(g.gst)}</span>
+          </div>
+        `;
+      });
+      document.getElementById('estGSTBreakdown').innerHTML = gstHTML;
       document.getElementById('estDelivery').textContent = cart.deliveryCharge === 0 ? 'FREE' : Utils.formatCurrency(cart.deliveryCharge);
       document.getElementById('estTotal').textContent = Utils.formatCurrency(cart.total);
 
@@ -308,9 +315,9 @@
         id: Utils.generateId(),
         estimate_number: estimateNum,
         user_id: Auth.getCurrentUser()?.id || 'guest',
-        items: cart.items.map(i => ({ product_id: i.product_id, name: i.product.name, price: i.product.price, quantity: i.quantity })),
+        items: cart.items.map(i => ({ product_id: i.product_id, name: i.product.name, price: i.mrp, quantity: i.quantity, gst_rate: i.gst_rate })),
         subtotal: cart.subtotal,
-        tax: cart.tax,
+        tax: cart.totalGST,
         total: cart.total,
         created_at: new Date().toISOString()
       };
@@ -416,7 +423,7 @@
     function placeOrder() {
       const btn = document.getElementById('placeOrderBtn');
       btn.disabled = true;
-      btn.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i> Placing Order...';
+      btn.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i> Submitting...';
 
       const orderData = {
         name: document.getElementById('customerName').value.trim(),
@@ -433,16 +440,19 @@
 
       // Simulate processing delay
       setTimeout(() => {
-        const order = App.placeOrder(orderData);
-        if (order) {
+        const bill = App.createBill(orderData);
+        if (bill) {
           document.getElementById('step3').style.display = 'none';
           document.getElementById('orderSuccess').style.display = 'block';
-          document.getElementById('successOrderNumber').textContent = order.order_number;
-          Utils.showToast('Order placed successfully!', 'success');
+          document.getElementById('successOrderNumber').textContent = bill.bill_number;
+          // Update success message for pending approval
+          document.querySelector('#orderSuccess h2').textContent = 'Bill Submitted for Approval!';
+          document.querySelector('#orderSuccess h2').nextElementSibling.innerHTML = 'Your bill has been submitted and is <strong>pending admin approval</strong>.<br>Stock will be reserved once approved.';
+          Utils.showToast('Bill submitted for approval!', 'success');
         } else {
           btn.disabled = false;
           btn.innerHTML = '<i class="fas fa-check-double me-1"></i> Place Order';
-          Utils.showToast('Failed to place order. Please try again.', 'error');
+          Utils.showToast('Failed to create bill. Please try again.', 'error');
         }
       }, 1500);
     }

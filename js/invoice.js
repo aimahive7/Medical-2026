@@ -34,28 +34,45 @@ const Invoice = {
     const shop = this.getShopInfo();
     const invoiceNum = order.invoice_number || order.order_number;
     const billDate = Utils.formatDate(order.created_at);
-    const settings = App.getSettings();
-    const gstRate = settings.gst_rate || 18;
 
-    // Calculate breakdowns
-    const medicineSubtotal = order.subtotal || order.items.reduce((s, i) => s + (i.price * i.quantity), 0);
-    const gstAmount = order.tax || Utils.calculateTax(medicineSubtotal, gstRate);
-    const deliveryCharge = order.delivery_charge !== undefined ? order.delivery_charge : 0;
-    const grandTotal = order.total || (medicineSubtotal + gstAmount + deliveryCharge);
+    // Calculate breakdowns using per-item GST
+    const gstGroups = {};
+    let baseTotal = 0;
+    let gstTotal = 0;
+    
+    order.items.forEach(item => {
+      const gstRate = item.gst_rate || 5;
+      const mrp = item.mrp || item.price;
+      const lineTotal = mrp * item.quantity;
+      const lineBase = item.base_price || (Utils.calculateBasePrice(mrp, gstRate) * item.quantity);
+      const lineGST = item.gst_amount || (Utils.calculateGSTFromMRP(mrp, gstRate) * item.quantity);
+      
+      if (!gstGroups[gstRate]) gstGroups[gstRate] = { taxable: 0, gst: 0 };
+      gstGroups[gstRate].taxable += lineBase;
+      gstGroups[gstRate].gst += lineGST;
+      baseTotal += lineBase;
+      gstTotal += lineGST;
+    });
+
+    const grandTotal = baseTotal + gstTotal;
 
     let itemsHTML = '';
     order.items.forEach((item, idx) => {
       const product = App.getById('products', item.product_id);
+      const batchNum = item.batch_number || (product ? (product.batch_no || 'DOB' + Math.floor(Math.random()*9000+1000)) : '-');
+      const expiryDate = item.expiry_date || (product ? product.expiry_date : '');
+      const mrp = item.mrp || item.price;
+      
       itemsHTML += `
         <tr>
           <td>${idx + 1}</td>
           <td class="item-name">${Utils.sanitize(item.name).toUpperCase()}</td>
           <td>${product ? (product.strength || '-') : '-'}</td>
           <td>${product ? this.getMfgName(product) : '-'}</td>
-          <td>${product ? (product.batch_no || 'DOB' + Math.floor(Math.random()*9000+1000)) : '-'}</td>
-          <td>${product && product.expiry_date ? this.formatExpiry(product.expiry_date) : '-'}</td>
+          <td>${batchNum}</td>
+          <td>${expiryDate ? this.formatExpiry(expiryDate) : '-'}</td>
           <td class="text-center">${item.quantity}</td>
-          <td class="text-right">${(item.price * item.quantity).toFixed(2)}</td>
+          <td class="text-right">${(mrp * item.quantity).toFixed(2)}</td>
         </tr>
       `;
     });
@@ -65,6 +82,17 @@ const Invoice = {
     for (let i = 0; i < emptyRows; i++) {
       itemsHTML += `<tr class="empty-row"><td>&nbsp;</td><td></td><td></td><td></td><td></td><td></td><td></td><td></td></tr>`;
     }
+
+    // GST Breakup rows
+    let gstBreakdownHTML = '';
+    Object.entries(gstGroups).forEach(([rate, data]) => {
+      gstBreakdownHTML += `
+        <div class="breakdown-row">
+          <span>GST @ ${rate}% (on ${data.taxable.toFixed(2)}) :</span>
+          <strong>${data.gst.toFixed(2)}</strong>
+        </div>
+      `;
+    });
 
     return `
       <div class="bill-copy">
@@ -132,19 +160,16 @@ const Invoice = {
         <!-- Dashed Separator -->
         <div class="dashed-line"></div>
 
-        <!-- Detailed Breakdown -->
+        <!-- GST Breakup (per product rate) -->
         <div class="bill-breakdown">
           <div class="breakdown-row">
-            <span>Medicine Bill :</span>
-            <strong>${medicineSubtotal.toFixed(2)}</strong>
+            <span>Base Amount :</span>
+            <strong>${baseTotal.toFixed(2)}</strong>
           </div>
-          <div class="breakdown-row">
-            <span>GST (${gstRate}%) :</span>
-            <strong>${gstAmount.toFixed(2)}</strong>
-          </div>
-          <div class="breakdown-row">
+          ${gstBreakdownHTML}
+          <div class="breakdown-row" style="font-size:9px;color:#666;">
             <span>Delivery Charge :</span>
-            <strong>${deliveryCharge === 0 ? 'FREE' : deliveryCharge.toFixed(2)}</strong>
+            <strong>BILLED SEPARATELY</strong>
           </div>
         </div>
 
@@ -153,10 +178,10 @@ const Invoice = {
         <!-- Totals Row -->
         <div class="bill-totals">
           <div class="total-left">
-            <span>Gross: <strong>${grandTotal.toFixed(2)}</strong></span>
+            <span>Gross (MRP incl. GST): <strong>${grandTotal.toFixed(2)}</strong></span>
           </div>
           <div class="total-right">
-            <span>Net: <strong>${medicineSubtotal.toFixed(2)}</strong></span>
+            <span>Net: <strong>${baseTotal.toFixed(2)}</strong></span>
           </div>
         </div>
 

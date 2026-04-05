@@ -95,19 +95,34 @@
 
     function loadOrders() {
       const user = Auth.getCurrentUser();
-      let orders = App.getAll('orders');
-
-      // Filter to current user's orders (or show all if not logged in — for demo)
+      
+      // Get legacy orders
+      let orders = App.getAll('orders').map(o => ({ ...o, _type: 'order' }));
+      // Get new bills
+      let bills = App.getAll('bills').map(b => ({
+        ...b,
+        _type: 'bill',
+        order_number: b.bill_number,
+        total: b.grand_total,
+        items: b.items
+      }));
+      
+      // Merge and filter
+      let allOrders = [...orders, ...bills];
+      
       if (user && user.role !== 'admin') {
-        orders = orders.filter(o => o.user_id === user.id);
+        allOrders = allOrders.filter(o => o.user_id === user.id);
       }
 
-      // Sort newest first
-      orders.sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+      // Remove duplicates (bills that were also converted to orders)
+      const billIds = new Set(bills.map(b => `bill_${b.id}`));
+      allOrders = allOrders.filter(o => !(o._type === 'order' && billIds.has(o.id)));
+
+      allOrders.sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
 
       const container = document.getElementById('ordersContent');
 
-      if (orders.length === 0) {
+      if (allOrders.length === 0) {
         container.innerHTML = `
           <div class="empty-state">
             <i class="fas fa-box-open"></i>
@@ -120,37 +135,44 @@
         return;
       }
 
-      container.innerHTML = orders.map(order => {
+      container.innerHTML = allOrders.map(order => {
         const statusInfo = Utils.getOrderStatusInfo(order.status);
+        const isBill = order._type === 'bill';
+        const isApproved = order.status === 'approved';
+        const isRejected = order.status === 'rejected';
+        const isPending = order.status === 'pending_approval';
+        
         return `
           <div class="cart-item fade-in mb-3">
-            <div class="item-img" style="background:var(--primary-50);cursor:pointer;" onclick="showOrderDetail('${order.id}')">
-              <i class="fas fa-box" style="color:var(--primary-500);font-size:1.5rem;"></i>
+            <div class="item-img" style="background:${isPending ? 'var(--warning-light)' : isRejected ? 'var(--danger-light)' : isApproved ? 'var(--success-light)' : 'var(--primary-50)'};cursor:pointer;" onclick="showOrderDetail('${order.id}', '${order._type}')">
+              <i class="fas ${isPending ? 'fa-hourglass-half' : isRejected ? 'fa-times-circle' : isApproved ? 'fa-check-circle' : 'fa-box'}" style="color:${isPending ? 'var(--warning)' : isRejected ? 'var(--danger)' : isApproved ? 'var(--success)' : 'var(--primary-500)'};font-size:1.5rem;"></i>
             </div>
-            <div class="item-info flex-grow-1" style="cursor:pointer;" onclick="showOrderDetail('${order.id}')">
+            <div class="item-info flex-grow-1" style="cursor:pointer;" onclick="showOrderDetail('${order.id}', '${order._type}')">
               <div class="d-flex align-items-center gap-2 mb-1 flex-wrap">
-                <span class="item-name mb-0">${order.order_number}</span>
+                <span class="item-name mb-0">${order.order_number || order.bill_number}</span>
                 <span class="status-badge ${statusInfo.class}">
                   <i class="fas ${statusInfo.icon} me-1"></i>${statusInfo.label}
                 </span>
               </div>
               <div class="item-category">${order.items.length} item${order.items.length !== 1 ? 's' : ''} • ${Utils.formatDate(order.created_at)}</div>
+              ${isRejected && order.rejection_reason ? `<div class="text-danger" style="font-size:var(--fs-xs);margin-top:0.2rem;"><i class="fas fa-info-circle me-1"></i>${Utils.sanitize(order.rejection_reason)}</div>` : ''}
               <div class="text-muted" style="font-size:var(--fs-xs);margin-top:0.2rem;">
                 ${order.items.map(i => i.name).join(', ')}
               </div>
             </div>
             <div class="text-end" style="min-width:140px;">
-              <div class="item-price mb-1">${Utils.formatCurrency(order.total)}</div>
+              <div class="item-price mb-1">${Utils.formatCurrency(order.total || order.grand_total)}</div>
               <div class="d-flex gap-1 justify-content-end flex-wrap">
-                <button class="btn btn-sm btn-outline-warning" onclick="showInvoicePreview('${order.id}')" title="View Bill">
-                  <i class="fas fa-file-invoice" style="font-size:0.7rem;"></i>
-                </button>
-                <button class="btn btn-sm btn-outline-info" onclick="Invoice.openPrintPreview('${order.id}')" title="Print Bill">
-                  <i class="fas fa-print" style="font-size:0.7rem;"></i>
-                </button>
-                <button class="btn btn-sm btn-outline-success" onclick="Invoice.generatePDF('${order.id}')" title="Download PDF">
-                  <i class="fas fa-file-pdf" style="font-size:0.7rem;"></i>
-                </button>
+                ${isApproved || (!isBill) ? `
+                  <button class="btn btn-sm btn-outline-warning" onclick="showInvoicePreview('${order.id}', '${order._type}')" title="View Bill">
+                    <i class="fas fa-file-invoice" style="font-size:0.7rem;"></i>
+                  </button>
+                  <button class="btn btn-sm btn-outline-success" onclick="downloadPDF('${order.id}', '${order._type}')" title="Download PDF">
+                    <i class="fas fa-file-pdf" style="font-size:0.7rem;"></i>
+                  </button>
+                ` : `
+                  <small class="text-muted" style="font-size:0.7rem;">Invoice after approval</small>
+                `}
               </div>
             </div>
           </div>
@@ -158,19 +180,52 @@
       }).join('');
     }
 
-    function showOrderDetail(orderId) {
-      const order = App.getById('orders', orderId);
-      if (!order) return;
+    function showOrderDetail(orderId, type) {
+      let order;
+      if (type === 'bill') {
+        const bill = App.getById('bills', orderId);
+        if (!bill) return;
+        order = {
+          ...bill,
+          order_number: bill.bill_number,
+          total: bill.grand_total,
+          subtotal: bill.subtotal,
+          tax: bill.total_gst,
+          delivery_charge: bill.delivery_charge,
+          _type: 'bill'
+        };
+      } else {
+        order = App.getById('orders', orderId);
+        if (!order) return;
+        order._type = 'order';
+      }
 
       const statusInfo = Utils.getOrderStatusInfo(order.status);
-      const statuses = ['pending', 'confirmed', 'packed', 'dispatched', 'delivered'];
+      const statuses = order._type === 'bill' 
+        ? ['pending_approval', 'approved'] 
+        : ['pending', 'confirmed', 'packed', 'dispatched', 'delivered'];
       const currentIdx = statuses.indexOf(order.status);
 
       const settings = App.getSettings();
-      const gstRate = settings.gst_rate || 18;
-      const medicineSubtotal = order.subtotal || 0;
-      const gstAmount = order.tax || 0;
-      const deliveryCharge = order.delivery_charge !== undefined ? order.delivery_charge : 0;
+      const deliveryCharge = order.delivery_charge || 0;
+
+      // GST breakdown for bills
+      let gstBreakdownHTML = '';
+      if (order._type === 'bill') {
+        const gstGroups = {};
+        order.items.forEach(item => {
+          const rate = item.gst_rate || 5;
+          if (!gstGroups[rate]) gstGroups[rate] = { taxable: 0, gst: 0 };
+          gstGroups[rate].taxable += item.base_price || 0;
+          gstGroups[rate].gst += item.gst_amount || 0;
+        });
+        gstBreakdownHTML = Object.entries(gstGroups).map(([rate, data]) => `
+          <div class="d-flex justify-content-between mb-1">
+            <span class="text-muted small">GST @ ${rate}%</span>
+            <span class="small text-success">${Utils.formatCurrency(data.gst)}</span>
+          </div>
+        `).join('');
+      }
 
       let timelineHTML = statuses.map((s, idx) => {
         const info = Utils.getOrderStatusInfo(s);
@@ -190,18 +245,18 @@
         <div class="row g-4">
           <div class="col-md-7">
             <div class="d-flex align-items-center gap-2 mb-3">
-              <h5 class="mb-0">${order.order_number}</h5>
+              <h5 class="mb-0">${order.order_number || order.bill_number}</h5>
               <span class="status-badge ${statusInfo.class}">
                 <i class="fas ${statusInfo.icon} me-1"></i>${statusInfo.label}
               </span>
             </div>
 
-            <!-- Items -->
             <div class="table-container mb-3">
               <table class="table mb-0">
                 <thead>
                   <tr>
                     <th>Product</th>
+                    ${order._type === 'bill' ? '<th>Batch</th><th>GST%</th>' : ''}
                     <th class="text-center">Qty</th>
                     <th class="text-end">Price</th>
                     <th class="text-end">Total</th>
@@ -211,25 +266,27 @@
                   ${order.items.map(item => `
                     <tr>
                       <td>${Utils.sanitize(item.name)}</td>
+                      ${order._type === 'bill' ? `<td><small>${item.batch_number || 'N/A'}</small></td><td><small>${item.gst_rate}%</small></td>` : ''}
                       <td class="text-center">${item.quantity}</td>
-                      <td class="text-end">${Utils.formatCurrency(item.price)}</td>
-                      <td class="text-end">${Utils.formatCurrency(item.price * item.quantity)}</td>
+                      <td class="text-end">${Utils.formatCurrency(item.mrp || item.price)}</td>
+                      <td class="text-end">${Utils.formatCurrency(item.total || (item.price * item.quantity))}</td>
                     </tr>
                   `).join('')}
                 </tbody>
               </table>
             </div>
 
-            <!-- Breakdown with medicine bill + delivery separately -->
             <div class="glass-card" style="background:var(--gray-50);">
               <div class="d-flex justify-content-between mb-1">
-                <span class="text-muted small"><i class="fas fa-pills me-1"></i>Medicine Bill</span>
-                <span class="small fw-600">${Utils.formatCurrency(medicineSubtotal)}</span>
+                <span class="text-muted small"><i class="fas fa-pills me-1"></i>Base Amount</span>
+                <span class="small fw-600">${Utils.formatCurrency(order.subtotal)}</span>
               </div>
-              <div class="d-flex justify-content-between mb-1">
-                <span class="text-muted small"><i class="fas fa-percent me-1"></i>GST (${gstRate}%)</span>
-                <span class="small">${Utils.formatCurrency(gstAmount)}</span>
-              </div>
+              ${gstBreakdownHTML || `
+                <div class="d-flex justify-content-between mb-1">
+                  <span class="text-muted small"><i class="fas fa-percent me-1"></i>GST</span>
+                  <span class="small">${Utils.formatCurrency(order.tax)}</span>
+                </div>
+              `}
               <div class="d-flex justify-content-between mb-1">
                 <span class="text-muted small"><i class="fas fa-truck me-1"></i>Delivery Charge</span>
                 <span class="small ${deliveryCharge === 0 ? 'text-success fw-bold' : ''}">${deliveryCharge === 0 ? 'FREE' : Utils.formatCurrency(deliveryCharge)}</span>
@@ -237,9 +294,11 @@
               <hr>
               <div class="d-flex justify-content-between fw-bold">
                 <span>Grand Total</span>
-                <span class="text-gradient" style="font-size:var(--fs-xl);">${Utils.formatCurrency(order.total)}</span>
+                <span class="text-gradient" style="font-size:var(--fs-xl);">${Utils.formatCurrency(order.total || order.grand_total)}</span>
               </div>
             </div>
+
+            ${order.rejection_reason ? `<div class="alert alert-danger mt-2" style="font-size:var(--fs-sm);"><i class="fas fa-times-circle me-1"></i><strong>Rejected:</strong> ${Utils.sanitize(order.rejection_reason)}</div>` : ''}
 
             <div class="mt-3" style="font-size:var(--fs-sm);">
               <p class="mb-1"><strong>Payment:</strong> ${order.payment_method}</p>
@@ -257,19 +316,17 @@
       `;
 
       // Footer with print/PDF buttons
-      document.getElementById('orderDetailFooter').innerHTML = `
+      const canInvoice = order.status === 'approved' || (order._type !== 'bill' && order.status !== 'pending_approval' && order.status !== 'rejected');
+      document.getElementById('orderDetailFooter').innerHTML = canInvoice ? `
         <div class="d-flex gap-2 flex-wrap w-100 justify-content-center">
-          <button class="btn btn-sm btn-outline-warning" onclick="bootstrap.Modal.getInstance(document.getElementById('orderDetailModal')).hide(); showInvoicePreview('${orderId}')">
+          <button class="btn btn-sm btn-outline-warning" onclick="bootstrap.Modal.getInstance(document.getElementById('orderDetailModal')).hide(); showInvoicePreview('${orderId}', '${type}')">
             <i class="fas fa-file-invoice me-1"></i> View Bill
           </button>
-          <button class="btn btn-sm btn-outline-info" onclick="Invoice.openPrintPreview('${orderId}')">
-            <i class="fas fa-print me-1"></i> Print Bill
-          </button>
-          <button class="btn btn-sm btn-outline-success" onclick="Invoice.generatePDF('${orderId}')">
+          <button class="btn btn-sm btn-outline-success" onclick="downloadPDF('${orderId}', '${type}')">
             <i class="fas fa-file-pdf me-1"></i> Download PDF
           </button>
         </div>
-      `;
+      ` : `<small class="text-muted">Invoice will be available after approval</small>`;
 
       const modal = new bootstrap.Modal(document.getElementById('orderDetailModal'));
       modal.show();
@@ -278,16 +335,31 @@
     /**
      * Show invoice preview in modal (same Shobha Medical bill format as admin)
      */
-    function showInvoicePreview(orderId) {
-      const order = App.getById('orders', orderId);
-      if (!order) return;
+    function showInvoicePreview(orderId, type) {
+      let order;
+      if (type === 'bill') {
+        const bill = App.getById('bills', orderId);
+        if (!bill) return;
+        if (bill.status !== 'approved') {
+          Utils.showToast('Invoice available only for approved bills', 'warning');
+          return;
+        }
+        // Get or create order-like record
+        order = App.getById('orders', `bill_${bill.id}`);
+        if (!order) {
+          order = { id: `bill_${bill.id}`, order_number: bill.bill_number, invoice_number: Utils.generateNumber('SL'), customer_name: bill.customer_name, customer_email: bill.customer_email, customer_phone: bill.customer_phone, items: bill.items.map(i => ({ product_id: i.product_id, name: i.name, price: i.mrp, quantity: i.quantity, batch_number: i.batch_number, expiry_date: i.expiry_date, gst_rate: i.gst_rate, base_price: i.base_price, gst_amount: i.gst_amount })), subtotal: bill.subtotal, tax: bill.total_gst, delivery_charge: bill.delivery_charge, total: bill.grand_total, status: 'confirmed', payment_method: bill.payment_method, address: bill.address, notes: bill.notes, created_at: bill.created_at, confirmed_at: bill.approved_at };
+          App.add('orders', order);
+        }
+      } else {
+        order = App.getById('orders', orderId);
+        if (!order) return;
+      }
 
-      currentPreviewOrderId = orderId;
+      currentPreviewOrderId = order.id;
 
-      // Generate invoice number if needed
       if (!order.invoice_number) {
         order.invoice_number = Utils.generateNumber('SL');
-        App.update('orders', orderId, { invoice_number: order.invoice_number });
+        App.update('orders', order.id, { invoice_number: order.invoice_number });
       }
 
       const ccCopy = Invoice.generateBillHTML(order, 'C/C');
@@ -296,51 +368,28 @@
       const previewCSS = `
         <style>
           @import url('https://fonts.googleapis.com/css2?family=Courier+Prime:wght@400;700&display=swap');
-
-          .invoice-preview-page {
-            font-family: 'Courier Prime', 'Courier New', Courier, monospace;
-            font-size: 12px;
-            line-height: 1.4;
-            color: #000;
-            background: #fff;
-            max-width: 210mm;
-            margin: 0 auto;
-            padding: 8mm 12mm;
-            box-shadow: 0 2px 20px rgba(0,0,0,0.08);
-            border-radius: 4px;
-          }
-
-          .bill-copy { padding: 4mm 0; }
-          .bill-header { text-align: center; margin-bottom: 3mm; }
+          .invoice-preview-page { font-family: 'Courier Prime', monospace; font-size: 12px; line-height: 1.4; color: #000; background: #fff; max-width: 210mm; margin: 0 auto; padding: 8mm 12mm; box-shadow: 0 2px 20px rgba(0,0,0,0.08); border-radius: 4px; }
+          .bill-copy { padding: 4mm 0; } .bill-header { text-align: center; margin-bottom: 3mm; }
           .shop-title { font-size: 18px; font-weight: 700; text-decoration: underline; letter-spacing: 1px; margin: 0 0 2px; }
           .shop-address { font-size: 11px; margin: 0; }
           .bill-info-row { display: flex; justify-content: space-between; font-size: 11px; padding: 1px 0; }
-          .bill-info-row.center-row { justify-content: center; margin-bottom: 2mm; }
-          .dashed-line { border-top: 1px dashed #000; margin: 2mm 0; }
-          .bill-info-block { font-size: 11px; margin: 1mm 0; }
-          .info-grid { display: flex; justify-content: space-between; }
-          .info-left-block { flex: 1; }
-          .info-right-block { text-align: right; min-width: 200px; }
-          .info-left-block p, .info-right-block p { margin: 1px 0; }
-          .indent { padding-left: 60px; }
+          .bill-info-row.center-row { justify-content: center; margin-bottom: 2mm; } .dashed-line { border-top: 1px dashed #000; margin: 2mm 0; }
+          .bill-info-block { font-size: 11px; margin: 1mm 0; } .info-grid { display: flex; justify-content: space-between; }
+          .info-left-block { flex: 1; } .info-right-block { text-align: right; min-width: 200px; }
+          .info-left-block p, .info-right-block p { margin: 1px 0; } .indent { padding-left: 60px; }
           .bill-table { width: 100%; border-collapse: collapse; font-size: 11px; margin-top: 1mm; }
           .bill-table thead tr { border-bottom: 1px dashed #000; border-top: 1px dashed #000; }
           .bill-table th { text-align: left; padding: 2px 4px; font-weight: 700; font-size: 10px; }
           .bill-table td { padding: 2px 4px; vertical-align: top; }
-          .bill-table .text-right { text-align: right; }
-          .bill-table .text-center { text-align: center; }
+          .bill-table .text-right { text-align: right; } .bill-table .text-center { text-align: center; }
           .bill-table .item-name { max-width: 140px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
           .bill-table .empty-row td { height: 16px; }
           .col-sno { width: 6%; } .col-name { width: 26%; } .col-pkg { width: 10%; }
           .col-mfg { width: 11%; } .col-batch { width: 14%; } .col-expiry { width: 10%; }
           .col-qty { width: 8%; text-align: center; } .col-amount { width: 15%; text-align: right; }
-          .bill-breakdown { padding: 2mm 0; font-size: 11px; }
-          .breakdown-row { display: flex; justify-content: space-between; padding: 1px 0; }
-          .breakdown-row span { min-width: 140px; }
           .bill-totals { display: flex; justify-content: space-between; font-size: 12px; padding: 2mm 0; }
           .bill-footer { display: flex; justify-content: space-between; align-items: flex-end; font-size: 10px; margin-top: 3mm; padding-bottom: 2mm; }
-          .footer-note { font-weight: 700; font-size: 9px; margin-bottom: 2px; }
-          .footer-jurisdiction { font-size: 9px; }
+          .footer-note { font-weight: 700; font-size: 9px; margin-bottom: 2px; } .footer-jurisdiction { font-size: 9px; }
           .pharmacist-label { font-weight: 700; font-size: 11px; text-align: right; }
           .bill-separator { border-top: 1px solid #000; margin: 6mm 0; position: relative; }
           .bill-separator::after { content: '✂'; position: absolute; top: -10px; left: 50%; transform: translateX(-50%); background: white; padding: 0 8px; font-size: 14px; }
@@ -357,6 +406,26 @@
       `;
 
       new bootstrap.Modal(document.getElementById('invoicePreviewModal')).show();
+    }
+
+    function downloadPDF(orderId, type) {
+      if (type === 'bill') {
+        const bill = App.getById('bills', orderId);
+        if (!bill || bill.status !== 'approved') {
+          Utils.showToast('PDF available only for approved bills', 'warning');
+          return;
+        }
+        // Ensure order record exists
+        let order = App.getById('orders', `bill_${bill.id}`);
+        if (!order) {
+          showInvoicePreview(orderId, type); // This creates the order record
+          setTimeout(() => Invoice.generatePDF(`bill_${bill.id}`), 500);
+          return;
+        }
+        Invoice.generatePDF(order.id);
+      } else {
+        Invoice.generatePDF(orderId);
+      }
     }
 
     function printFromPreview() {

@@ -24,7 +24,7 @@ const App = {
     this.hideLoader();
     
     // Log readiness
-    console.log('🏥 Shobha Medical Stores — App initialized');
+    console.log('🏥 Shobha Medical Stores — App initialized (v2)');
   },
 
   /* ---------- DATA STORE (localStorage CRUD) ---------- */
@@ -104,9 +104,8 @@ const App = {
     // Hide hidden products for customers
     if (filters.customerView) {
       products = products.filter(p => !p.is_hidden && p.status === 'active');
-      // Also hide out-of-stock if configured
       if (filters.hideOutOfStock) {
-        products = products.filter(p => p.stock_qty > 0);
+        products = products.filter(p => this.getTotalStock(p.id) > 0);
       }
     }
 
@@ -121,36 +120,42 @@ const App = {
       products = products.filter(p =>
         p.name.toLowerCase().includes(q) ||
         p.description.toLowerCase().includes(q) ||
-        p.category.toLowerCase().includes(q)
+        p.category.toLowerCase().includes(q) ||
+        (p.composition || '').toLowerCase().includes(q) ||
+        (p.manufacturer || '').toLowerCase().includes(q) ||
+        (p.hsn_code || '').toLowerCase().includes(q)
       );
     }
 
-    // Price filter
+    // Price filter (uses mrp)
     if (filters.minPrice !== undefined) {
-      products = products.filter(p => p.price >= filters.minPrice);
+      products = products.filter(p => (p.mrp || p.price) >= filters.minPrice);
     }
     if (filters.maxPrice !== undefined) {
-      products = products.filter(p => p.price <= filters.maxPrice);
+      products = products.filter(p => (p.mrp || p.price) <= filters.maxPrice);
     }
 
     // Stock filter
     if (filters.stockStatus === 'in-stock') {
-      products = products.filter(p => p.stock_qty > 10);
+      products = products.filter(p => (p.stock_qty || this.getTotalStock(p.id)) > 10);
     } else if (filters.stockStatus === 'low-stock') {
       const threshold = this.getSettings().low_stock_threshold || 10;
-      products = products.filter(p => p.stock_qty > 0 && p.stock_qty <= threshold);
+      products = products.filter(p => {
+        const qty = p.stock_qty || this.getTotalStock(p.id);
+        return qty > 0 && qty <= threshold;
+      });
     } else if (filters.stockStatus === 'out-of-stock') {
-      products = products.filter(p => p.stock_qty <= 0);
+      products = products.filter(p => (p.stock_qty || this.getTotalStock(p.id)) <= 0);
     }
 
     // Sort
     if (filters.sort) {
       switch (filters.sort) {
         case 'price-asc':
-          products.sort((a, b) => a.price - b.price);
+          products.sort((a, b) => (a.mrp || a.price) - (b.mrp || b.price));
           break;
         case 'price-desc':
-          products.sort((a, b) => b.price - a.price);
+          products.sort((a, b) => (b.mrp || b.price) - (a.mrp || a.price));
           break;
         case 'name-asc':
           products.sort((a, b) => a.name.localeCompare(b.name));
@@ -177,6 +182,111 @@ const App = {
     return [...new Set(products.map(p => p.category))].sort();
   },
 
+  /* ---------- BATCH MANAGEMENT ---------- */
+
+  /**
+   * Get all batches for a product
+   */
+  getProductBatches(productId) {
+    const batches = this.getAll('product_batches');
+    return batches.filter(b => b.product_id === productId);
+  },
+
+  /**
+   * Get available (non-expired, in-stock) batches for a product, sorted FEFO
+   */
+  getAvailableBatches(productId) {
+    const batches = this.getProductBatches(productId);
+    return batches
+      .filter(b => b.quantity > 0 && !Utils.isExpired(b.expiry_date))
+      .sort((a, b) => {
+        // First Expiry First Out (FEFO)
+        if (!a.expiry_date) return 1;
+        if (!b.expiry_date) return -1;
+        return new Date(a.expiry_date) - new Date(b.expiry_date);
+      });
+  },
+
+  /**
+   * Get total available stock for a product (sum of non-expired batches)
+   */
+  getTotalStock(productId) {
+    const batches = this.getAvailableBatches(productId);
+    return batches.reduce((sum, b) => sum + b.quantity, 0);
+  },
+
+  /**
+   * Allocate stock from batches using FEFO method
+   * Returns array of { batch_id, batch_number, expiry_date, quantity, mrp, gst_rate }
+   */
+  allocateBatches(productId, requestedQty) {
+    const batches = this.getAvailableBatches(productId);
+    const allocations = [];
+    let remaining = requestedQty;
+
+    for (const batch of batches) {
+      if (remaining <= 0) break;
+      const allocated = Math.min(remaining, batch.quantity);
+      allocations.push({
+        batch_id: batch.id,
+        batch_number: batch.batch_number,
+        expiry_date: batch.expiry_date,
+        quantity: allocated,
+        mrp: batch.mrp,
+        ptr_rate: batch.ptr_rate,
+        gst_rate: batch.gst_rate
+      });
+      remaining -= allocated;
+    }
+
+    return { allocations, fulfilled: remaining <= 0, shortfall: Math.max(0, remaining) };
+  },
+
+  /**
+   * Add a new batch for a product
+   */
+  addBatch(batchData) {
+    const batch = {
+      id: Utils.generateId(),
+      product_id: batchData.product_id,
+      batch_number: batchData.batch_number,
+      expiry_date: batchData.expiry_date,
+      quantity: parseInt(batchData.quantity) || 0,
+      free_quantity: parseInt(batchData.free_quantity) || 0,
+      ptr_rate: parseFloat(batchData.ptr_rate) || 0,
+      mrp: parseFloat(batchData.mrp) || 0,
+      gst_rate: parseFloat(batchData.gst_rate) || 5,
+      created_at: new Date().toISOString()
+    };
+
+    this.add('product_batches', batch);
+
+    // Update product stock_qty (total from all batches)
+    this.syncProductStock(batchData.product_id);
+
+    // Log stock history
+    this.add('stock_history', {
+      id: Utils.generateId(),
+      product_id: batchData.product_id,
+      batch_id: batch.id,
+      batch_number: batch.batch_number,
+      qty_before: 0,
+      qty_after: batch.quantity,
+      action: 'batch_added',
+      timestamp: new Date().toISOString()
+    });
+
+    return batch;
+  },
+
+  /**
+   * Sync product stock_qty with total batch quantities
+   */
+  syncProductStock(productId) {
+    const totalStock = this.getTotalStock(productId);
+    this.update('products', productId, { stock_qty: totalStock });
+  },
+
   /* ---------- CART HELPERS ---------- */
 
   /**
@@ -201,7 +311,9 @@ const App = {
   addToCart(productId, quantity = 1) {
     const product = this.getById('products', productId);
     if (!product) return false;
-    if (product.stock_qty <= 0) {
+    
+    const availableStock = this.getTotalStock(productId) || product.stock_qty;
+    if (availableStock <= 0) {
       Utils.showToast('Product is out of stock', 'error');
       return false;
     }
@@ -211,8 +323,8 @@ const App = {
 
     if (existing) {
       const newQty = existing.quantity + quantity;
-      if (newQty > product.stock_qty) {
-        Utils.showToast(`Only ${product.stock_qty} available`, 'warning');
+      if (newQty > availableStock) {
+        Utils.showToast(`Only ${availableStock} available`, 'warning');
         return false;
       }
       existing.quantity = newQty;
@@ -245,8 +357,9 @@ const App = {
     const product = this.getById('products', productId);
     if (!product) return false;
 
-    if (quantity > product.stock_qty) {
-      Utils.showToast(`Only ${product.stock_qty} available`, 'warning');
+    const availableStock = this.getTotalStock(productId) || product.stock_qty;
+    if (quantity > availableStock) {
+      Utils.showToast(`Only ${availableStock} available`, 'warning');
       return false;
     }
 
@@ -265,34 +378,61 @@ const App = {
   },
 
   /**
-   * Get cart with product details
+   * Get cart with product details (per-product GST)
    */
   getCartDetails() {
     const cart = this.getCart();
     const settings = this.getSettings();
+    
     const items = cart.items.map(item => {
       const product = this.getById('products', item.product_id);
       if (!product) return null;
+      
+      const mrp = product.mrp || product.price;
+      const gstRate = product.gst_rate || Utils.getDefaultGSTRate(product.category);
+      const basePrice = Utils.calculateBasePrice(mrp, gstRate);
+      const gstAmount = Utils.calculateGSTFromMRP(mrp, gstRate);
+      
       return {
         ...item,
         product: product,
-        subtotal: product.price * item.quantity
+        mrp: mrp,
+        gst_rate: gstRate,
+        base_price: basePrice,
+        gst_per_unit: gstAmount,
+        subtotal: mrp * item.quantity,
+        base_total: basePrice * item.quantity,
+        gst_total: gstAmount * item.quantity
       };
     }).filter(Boolean);
 
-    const subtotal = items.reduce((sum, item) => sum + item.subtotal, 0);
-    const tax = Utils.calculateTax(subtotal, settings.gst_rate || 18);
-    const deliveryCharge = subtotal >= (settings.free_delivery_above || 500) ? 0 : (settings.delivery_charge || 40);
-    const total = subtotal + tax + deliveryCharge;
+    // Group GST by rate
+    const gstBreakdown = {};
+    items.forEach(item => {
+      const rate = item.gst_rate;
+      if (!gstBreakdown[rate]) {
+        gstBreakdown[rate] = { rate, taxable: 0, gst: 0 };
+      }
+      gstBreakdown[rate].taxable += item.base_total;
+      gstBreakdown[rate].gst += item.gst_total;
+    });
+
+    const subtotal = items.reduce((sum, item) => sum + item.base_total, 0);
+    const totalGST = items.reduce((sum, item) => sum + item.gst_total, 0);
+    const grandTotal = subtotal + totalGST;
+    const deliveryCharge = grandTotal >= (settings.free_delivery_above || 500) ? 0 : (settings.delivery_charge || 40);
 
     return {
       items,
-      subtotal,
-      tax,
-      taxRate: settings.gst_rate || 18,
+      subtotal,         // Total base price (excl GST)
+      tax: totalGST,    // Keep 'tax' for backward compat
+      totalGST,
+      gstBreakdown: Object.values(gstBreakdown),
       deliveryCharge,
       freeDeliveryAbove: settings.free_delivery_above || 500,
-      total,
+      grandTotal,       // subtotal + GST (excl delivery)
+      total: grandTotal + deliveryCharge,  // Grand total with delivery
+      taxRate: 'Per Product', // Indicate per-product GST
       itemCount: items.reduce((sum, item) => sum + item.quantity, 0)
     };
   },
@@ -318,35 +458,89 @@ const App = {
     });
   },
 
-  /* ---------- ORDER HELPERS ---------- */
+  /* ---------- BILL / ORDER HELPERS ---------- */
 
   /**
-   * Place an order
+   * Create a bill (Pending Approval — new workflow)
+   * Stock is NOT deducted until approved
    */
-  placeOrder(orderData) {
+  createBill(orderData) {
     const cart = this.getCartDetails();
     if (cart.items.length === 0) return null;
 
     const user = Auth.getCurrentUser();
-    
-    const order = {
+
+    // Build bill items with batch allocation
+    const billItems = [];
+    for (const cartItem of cart.items) {
+      const product = cartItem.product;
+      const mrp = cartItem.mrp;
+      const gstRate = cartItem.gst_rate;
+      
+      // Try to allocate from batches
+      const allocation = this.allocateBatches(product.id, cartItem.quantity);
+      
+      if (allocation.allocations.length > 0) {
+        // Add each allocated batch as a line item
+        for (const alloc of allocation.allocations) {
+          const useMRP = alloc.mrp || mrp;
+          const useGST = alloc.gst_rate || gstRate;
+          const baseUnit = Utils.calculateBasePrice(useMRP, useGST);
+          const gstUnit = Utils.calculateGSTFromMRP(useMRP, useGST);
+          
+          billItems.push({
+            product_id: product.id,
+            batch_id: alloc.batch_id,
+            name: product.name,
+            batch_number: alloc.batch_number,
+            expiry_date: alloc.expiry_date,
+            quantity: alloc.quantity,
+            mrp: useMRP,
+            gst_rate: useGST,
+            base_price: baseUnit * alloc.quantity,
+            gst_amount: gstUnit * alloc.quantity,
+            total: useMRP * alloc.quantity
+          });
+        }
+      } else {
+        // No batches available — use product-level data
+        const baseUnit = Utils.calculateBasePrice(mrp, gstRate);
+        const gstUnit = Utils.calculateGSTFromMRP(mrp, gstRate);
+        
+        billItems.push({
+          product_id: product.id,
+          batch_id: null,
+          name: product.name,
+          batch_number: 'N/A',
+          expiry_date: '',
+          quantity: cartItem.quantity,
+          mrp: mrp,
+          gst_rate: gstRate,
+          base_price: baseUnit * cartItem.quantity,
+          gst_amount: gstUnit * cartItem.quantity,
+          total: mrp * cartItem.quantity
+        });
+      }
+    }
+
+    const billSubtotal = billItems.reduce((sum, i) => sum + i.base_price, 0);
+    const billGST = billItems.reduce((sum, i) => sum + i.gst_amount, 0);
+    const billGrandTotal = billItems.reduce((sum, i) => sum + i.total, 0);
+    const deliveryCharge = billGrandTotal >= (this.getSettings().free_delivery_above || 500) ? 0 : (this.getSettings().delivery_charge || 40);
+
+    const bill = {
       id: Utils.generateId(),
-      order_number: Utils.generateNumber('ORD'),
+      bill_number: Utils.generateNumber('BILL'),
       user_id: user ? user.id : 'guest',
       customer_name: orderData.name,
       customer_email: orderData.email,
       customer_phone: orderData.phone,
-      items: cart.items.map(item => ({
-        product_id: item.product_id,
-        name: item.product.name,
-        price: item.product.price,
-        quantity: item.quantity
-      })),
-      subtotal: cart.subtotal,
-      tax: cart.tax,
-      delivery_charge: cart.deliveryCharge,
-      total: cart.total,
-      status: 'pending',
+      items: billItems,
+      subtotal: billSubtotal,
+      total_gst: billGST,
+      grand_total: billGrandTotal,
+      delivery_charge: deliveryCharge,
+      status: 'pending_approval',
       payment_method: orderData.payment_method || 'COD',
       address: {
         line1: orderData.address_line1,
@@ -357,34 +551,177 @@ const App = {
       },
       notes: orderData.notes || '',
       created_at: new Date().toISOString(),
-      confirmed_at: null,
-      delivered_at: null
+      approved_at: null,
+      approved_by: null,
+      rejection_reason: null
     };
 
-    // Reduce stock
-    order.items.forEach(item => {
-      const product = this.getById('products', item.product_id);
-      if (product) {
-        const newQty = Math.max(0, product.stock_qty - item.quantity);
+    this.add('bills', bill);
+    this.clearCart();
+    
+    return bill;
+  },
+
+  /**
+   * Approve a bill (Admin action)
+   * Deducts stock from batches
+   */
+  approveBill(billId, adminId) {
+    const bill = this.getById('bills', billId);
+    if (!bill || bill.status !== 'pending_approval') {
+      return { success: false, message: 'Bill not found or not pending approval.' };
+    }
+
+    // Validate and deduct stock
+    for (const item of bill.items) {
+      if (item.batch_id) {
+        const batch = this.getById('product_batches', item.batch_id);
+        if (!batch) {
+          return { success: false, message: `Batch ${item.batch_number} not found for ${item.name}.` };
+        }
+        if (batch.quantity < item.quantity) {
+          return { success: false, message: `Insufficient stock in batch ${item.batch_number} for ${item.name}. Available: ${batch.quantity}, Required: ${item.quantity}` };
+        }
+        if (Utils.isExpired(batch.expiry_date)) {
+          return { success: false, message: `Batch ${item.batch_number} for ${item.name} has expired.` };
+        }
+      }
+    }
+
+    // All validations passed — deduct stock
+    for (const item of bill.items) {
+      if (item.batch_id) {
+        const batch = this.getById('product_batches', item.batch_id);
+        const newQty = batch.quantity - item.quantity;
+
         // Log stock change
         this.add('stock_history', {
           id: Utils.generateId(),
           product_id: item.product_id,
+          batch_id: item.batch_id,
+          batch_number: item.batch_number,
           product_name: item.name,
-          qty_before: product.stock_qty,
+          qty_before: batch.quantity,
           qty_after: newQty,
           action: 'sale',
-          order_id: order.id,
+          bill_id: billId,
           timestamp: new Date().toISOString()
         });
-        this.update('products', item.product_id, { stock_qty: newQty });
+
+        // Update batch quantity
+        this.update('product_batches', item.batch_id, { quantity: newQty });
       }
+
+      // Sync product total stock
+      this.syncProductStock(item.product_id);
+    }
+
+    // Update bill status
+    const admin = this.getById('users', adminId);
+    this.update('bills', billId, {
+      status: 'approved',
+      approved_at: new Date().toISOString(),
+      approved_by: adminId
     });
 
-    this.add('orders', order);
-    this.clearCart();
-    
-    return order;
+    // Log approval
+    this.add('approvals', {
+      id: Utils.generateId(),
+      bill_id: billId,
+      action: 'approved',
+      admin_id: adminId,
+      admin_name: admin ? admin.name : 'Admin',
+      changes: {},
+      reason: '',
+      timestamp: new Date().toISOString()
+    });
+
+    return { success: true, message: 'Bill approved successfully. Stock deducted.' };
+  },
+
+  /**
+   * Reject a bill (Admin action)
+   */
+  rejectBill(billId, adminId, reason) {
+    const bill = this.getById('bills', billId);
+    if (!bill || bill.status !== 'pending_approval') {
+      return { success: false, message: 'Bill not found or not pending approval.' };
+    }
+
+    const admin = this.getById('users', adminId);
+
+    this.update('bills', billId, {
+      status: 'rejected',
+      rejection_reason: reason || 'Rejected by admin'
+    });
+
+    // Log rejection
+    this.add('approvals', {
+      id: Utils.generateId(),
+      bill_id: billId,
+      action: 'rejected',
+      admin_id: adminId,
+      admin_name: admin ? admin.name : 'Admin',
+      changes: {},
+      reason: reason || 'Rejected by admin',
+      timestamp: new Date().toISOString()
+    });
+
+    return { success: true, message: 'Bill rejected.' };
+  },
+
+  /**
+   * Modify a bill (Admin action — before approval)
+   */
+  modifyBill(billId, adminId, updatedItems) {
+    const bill = this.getById('bills', billId);
+    if (!bill || bill.status !== 'pending_approval') {
+      return { success: false, message: 'Bill not found or not pending approval.' };
+    }
+
+    // Recalculate totals
+    const newSubtotal = updatedItems.reduce((sum, i) => sum + i.base_price, 0);
+    const newGST = updatedItems.reduce((sum, i) => sum + i.gst_amount, 0);
+    const newGrandTotal = updatedItems.reduce((sum, i) => sum + i.total, 0);
+
+    const admin = this.getById('users', adminId);
+
+    // Log modification
+    this.add('approvals', {
+      id: Utils.generateId(),
+      bill_id: billId,
+      action: 'modified',
+      admin_id: adminId,
+      admin_name: admin ? admin.name : 'Admin',
+      changes: { old_items: bill.items, new_items: updatedItems },
+      reason: 'Modified by admin before approval',
+      timestamp: new Date().toISOString()
+    });
+
+    this.update('bills', billId, {
+      items: updatedItems,
+      subtotal: newSubtotal,
+      total_gst: newGST,
+      grand_total: newGrandTotal
+    });
+
+    return { success: true, message: 'Bill modified successfully.' };
+  },
+
+  /**
+   * Get pending bills count
+   */
+  getPendingBillsCount() {
+    const bills = this.getAll('bills');
+    return bills.filter(b => b.status === 'pending_approval').length;
+  },
+
+  /**
+   * Place an order (LEGACY — kept for backward compat with old orders)
+   */
+  placeOrder(orderData) {
+    // Now redirects to createBill
+    return this.createBill(orderData);
   },
 
   /* ---------- UI HELPERS ---------- */
@@ -419,15 +756,18 @@ const App = {
    * Render product card HTML
    */
   renderProductCard(product) {
-    const stock = Utils.getStockStatus(product.stock_qty, this.getSettings().low_stock_threshold || 10);
+    const totalStock = this.getTotalStock(product.id) || product.stock_qty;
+    const stock = Utils.getStockStatus(totalStock, this.getSettings().low_stock_threshold || 10);
     const icon = Utils.getCategoryIcon(product.category);
-    const isOutOfStock = product.stock_qty <= 0;
+    const isOutOfStock = totalStock <= 0;
+    const mrp = product.mrp || product.price;
+    const gstRate = product.gst_rate || Utils.getDefaultGSTRate(product.category);
 
     return `
       <div class="col-lg-3 col-md-4 col-sm-6 mb-4 fade-in">
         <div class="product-card h-100">
           <div class="product-img">
-            <i class="fas ${icon}"></i>
+            ${product.image ? `<img src="${product.image}" alt="${Utils.sanitize(product.name)}">` : `<i class="fas ${icon}"></i>`}
             <span class="product-badge ${stock.class}">
               <i class="fas ${stock.icon} me-1"></i>${stock.label}
             </span>
@@ -442,8 +782,12 @@ const App = {
             </h5>
             <p class="product-desc">${Utils.sanitize(product.description)}</p>
             ${product.dosage ? `<small class="text-muted"><i class="fas fa-prescription me-1"></i>${Utils.sanitize(product.dosage)}</small>` : ''}
+            ${product.manufacturer ? `<small class="text-muted d-block"><i class="fas fa-industry me-1"></i>${Utils.sanitize(product.manufacturer)}</small>` : ''}
             <div class="product-footer">
-              <span class="product-price">${Utils.formatCurrency(product.price)}</span>
+              <div>
+                <span class="product-price">${Utils.formatCurrency(mrp)}</span>
+                <small class="text-muted d-block" style="font-size:0.7rem;">GST ${gstRate}% incl.</small>
+              </div>
               <button class="btn-add-cart" 
                       onclick="App.addToCart('${product.id}')" 
                       ${isOutOfStock ? 'disabled' : ''}>
