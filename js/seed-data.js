@@ -236,7 +236,7 @@ const SeedData = {
       gst_number: "27AABCS1234A1ZV",
       gst_rate: 18,
       low_stock_threshold: 10,
-      phone: "9970670610",
+      phone: "+919970670610",
       email: "shobhamedicalstores01@gmail.com",
       address: "ND-41, SAMBHAJI CHOWK, CIDCO NANDED-431603.",
       dl_no: "20-324111  21-324112",
@@ -269,7 +269,7 @@ const SeedData = {
         email: "admin@shobha.com",
         password_hash: adminHash,
         role: "admin",
-        phone: "9970670610",
+        phone: "+919970670610",
         addresses: [],
         created_at: new Date().toISOString()
       }

@@ -16,7 +16,7 @@ const Invoice = {
     return {
       name: s.shop_name || 'SHOBHA MEDICAL STORES',
       address: s.address || 'ND-41, SAMBHAJI CHOWK, CIDCO NANDED-431603.',
-      phone: s.phone || '9970670610',
+      phone: s.phone || '+919970670610',
       dl_no: s.dl_no || '20-324111  21-324112',
       fdl_no: s.fdl_no || '21519324000092',
       gst_number: s.gst_number || '27AABCS1234A1ZV',
