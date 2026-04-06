@@ -44,6 +44,7 @@ const SeedData = {
     if (!localStorage.getItem('sms_estimates')) localStorage.setItem('sms_estimates', '[]');
     if (!localStorage.getItem('sms_invoices')) localStorage.setItem('sms_invoices', '[]');
     if (!localStorage.getItem('sms_stock_history')) localStorage.setItem('sms_stock_history', '[]');
+    if (!localStorage.getItem('sms_inward_bills')) localStorage.setItem('sms_inward_bills', '[]');
   },
 
   /**

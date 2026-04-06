@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -9,6 +10,7 @@
   <link href="../style.css" rel="stylesheet">
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 </head>
+
 <body>
 
   <aside class="admin-sidebar" id="adminSidebar">
@@ -17,20 +19,28 @@
       <span>Medical Stores — Admin</span>
     </div>
     <ul class="sidebar-nav">
-      <li class="nav-item"><a class="nav-link" href="dashboard.html"><i class="fas fa-tachometer-alt"></i> Dashboard</a></li>
+      <li class="nav-item"><a class="nav-link" href="dashboard.html"><i class="fas fa-tachometer-alt"></i> Dashboard</a>
+      </li>
       <li class="nav-item"><a class="nav-link" href="products.html"><i class="fas fa-pills"></i> Products</a></li>
-      <li class="nav-item"><a class="nav-link" href="approvals.html"><i class="fas fa-clipboard-check"></i> Approvals <span class="badge bg-warning ms-1" id="sidebarPendingCount">0</span></a></li>
-      <li class="nav-item"><a class="nav-link active" href="orders.html"><i class="fas fa-clipboard-list"></i> Orders</a></li>
+      <li class="nav-item"><a class="nav-link" href="inward.html"><i class="fas fa-truck-loading"></i> Inward Entry</a>
+      </li>
+      <li class="nav-item"><a class="nav-link" href="approvals.html"><i class="fas fa-clipboard-check"></i> Approvals
+          <span class="badge bg-warning ms-1" id="sidebarPendingCount">0</span></a></li>
+      <li class="nav-item"><a class="nav-link active" href="orders.html"><i class="fas fa-clipboard-list"></i>
+          Orders</a></li>
       <li class="nav-item"><a class="nav-link" href="settings.html"><i class="fas fa-cog"></i> Settings</a></li>
-      <li class="nav-item" style="margin-top:2rem;"><a class="nav-link" href="../index.html"><i class="fas fa-store"></i> View Store</a></li>
-      <li class="nav-item"><a class="nav-link text-danger" href="#" onclick="Auth.logout()"><i class="fas fa-sign-out-alt"></i> Logout</a></li>
+      <li class="nav-item" style="margin-top:2rem;"><a class="nav-link" href="../index.html"><i
+            class="fas fa-store"></i> View Store</a></li>
+      <li class="nav-item"><a class="nav-link text-danger" href="#" onclick="Auth.logout()"><i
+            class="fas fa-sign-out-alt"></i> Logout</a></li>
     </ul>
   </aside>
 
   <main class="admin-main">
     <div class="admin-topbar">
       <div>
-        <button class="btn btn-sm d-lg-none me-2" onclick="document.getElementById('adminSidebar').classList.toggle('show')">
+        <button class="btn btn-sm d-lg-none me-2"
+          onclick="document.getElementById('adminSidebar').classList.toggle('show')">
           <i class="fas fa-bars"></i>
         </button>
         <h2>Order Management</h2>
@@ -50,7 +60,8 @@
     <!-- Search / Date Filter -->
     <div class="row g-3 mb-4">
       <div class="col-lg-4">
-        <input type="text" class="form-control-custom" id="searchOrders" placeholder="🔍 Search by order #, customer name..." oninput="loadOrdersTable()">
+        <input type="text" class="form-control-custom" id="searchOrders"
+          placeholder="🔍 Search by order #, customer name..." oninput="loadOrdersTable()">
       </div>
       <div class="col-lg-3">
         <input type="date" class="form-control-custom" id="dateFrom" onchange="loadOrdersTable()">
@@ -326,7 +337,7 @@
 
       App.update('orders', orderId, updates);
       Utils.showToast(`Order status updated to ${newStatus}`, 'success');
-      
+
       bootstrap.Modal.getInstance(document.getElementById('orderModal')).hide();
       loadOrdersTable();
     }
@@ -441,4 +452,5 @@
     }
   </script>
 </body>
+
 </html>

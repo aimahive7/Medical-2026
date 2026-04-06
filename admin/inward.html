@@ -1,0 +1,502 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Inward Entry — SHOBHA MEDICAL STORES Admin</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" rel="stylesheet">
+  <link href="../style.css" rel="stylesheet">
+  <style>
+    .inward-tabs { display:flex; gap:0; border-bottom:2px solid var(--gray-200); margin-bottom:1.5rem; }
+    .inward-tab { padding:0.75rem 1.5rem; font-weight:600; font-size:var(--fs-sm); cursor:pointer; border:none; background:none; color:var(--text-muted); border-bottom:3px solid transparent; transition:all var(--transition-fast); }
+    .inward-tab.active { color:var(--primary-600); border-bottom-color:var(--primary-500); }
+    .inward-tab:hover { color:var(--primary-500); }
+    .tab-panel { display:none; } .tab-panel.active { display:block; animation:fadeIn 0.3s ease; }
+    .product-row { transition:all 0.2s ease; }
+    .product-row:hover { background:var(--primary-50)!important; }
+    .product-row td input, .product-row td select { font-size:var(--fs-sm)!important; padding:0.35rem 0.5rem!important; }
+    .amount-cell { font-weight:700; color:var(--primary-700); min-width:90px; }
+    .csv-drop-zone { border:2px dashed var(--gray-300); border-radius:var(--radius-xl); padding:3rem 2rem; text-align:center; transition:all var(--transition-fast); cursor:pointer; background:var(--gray-50); }
+    .csv-drop-zone:hover, .csv-drop-zone.dragover { border-color:var(--primary-400); background:var(--primary-50); }
+    .csv-drop-zone i { font-size:3rem; color:var(--primary-300); margin-bottom:1rem; }
+    .stock-result-added { color:var(--success); } .stock-result-updated { color:var(--info); } .stock-result-not_found { color:var(--warning); }
+    .bill-summary-bar { background:var(--gradient-primary); color:white; border-radius:var(--radius-xl); padding:1.25rem 2rem; display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:1rem; position:sticky; bottom:1rem; z-index:10; box-shadow:var(--shadow-xl); }
+    .bill-summary-bar .summary-item { text-align:center; } .bill-summary-bar .summary-label { font-size:var(--fs-xs); opacity:0.8; } .bill-summary-bar .summary-value { font-size:var(--fs-xl); font-weight:800; }
+    .history-card { background:var(--bg-card); border:var(--border-light); border-radius:var(--radius-lg); padding:1rem 1.25rem; margin-bottom:0.75rem; transition:all var(--transition-fast); cursor:pointer; }
+    .history-card:hover { box-shadow:var(--shadow-md); transform:translateY(-2px); }
+    .warning-box { background:var(--warning-light); border:1px solid var(--warning); border-radius:var(--radius-lg); padding:1rem; margin-bottom:1rem; }
+    .warning-box i { color:var(--warning); }
+    @media(max-width:767px) { .bill-summary-bar { flex-direction:column; text-align:center; } }
+  </style>
+</head>
+<body>
+
+  <!-- Admin Sidebar -->
+  <aside class="admin-sidebar" id="adminSidebar">
+    <div class="sidebar-brand">
+      <h4><i class="fas fa-clinic-medical me-2" style="color:var(--primary-400);"></i>SHOBHA</h4>
+      <span>Medical Stores — Admin</span>
+    </div>
+    <ul class="sidebar-nav">
+      <li class="nav-item"><a class="nav-link" href="dashboard.html"><i class="fas fa-tachometer-alt"></i> Dashboard</a></li>
+      <li class="nav-item"><a class="nav-link" href="products.html"><i class="fas fa-pills"></i> Products</a></li>
+      <li class="nav-item"><a class="nav-link active" href="inward.html"><i class="fas fa-truck-loading"></i> Inward Entry</a></li>
+      <li class="nav-item"><a class="nav-link" href="approvals.html"><i class="fas fa-clipboard-check"></i> Approvals <span class="badge bg-warning ms-1" id="sidebarPendingCount">0</span></a></li>
+      <li class="nav-item"><a class="nav-link" href="orders.html"><i class="fas fa-clipboard-list"></i> Orders</a></li>
+      <li class="nav-item"><a class="nav-link" href="settings.html"><i class="fas fa-cog"></i> Settings</a></li>
+      <li class="nav-item" style="margin-top:2rem;"><a class="nav-link" href="../index.html"><i class="fas fa-store"></i> View Store</a></li>
+      <li class="nav-item"><a class="nav-link text-danger" href="#" onclick="Auth.logout()"><i class="fas fa-sign-out-alt"></i> Logout</a></li>
+    </ul>
+  </aside>
+
+  <!-- Main Content -->
+  <main class="admin-main">
+    <div class="admin-topbar">
+      <div>
+        <button class="btn btn-sm d-lg-none me-2" onclick="document.getElementById('adminSidebar').classList.toggle('show')"><i class="fas fa-bars"></i></button>
+        <h2><i class="fas fa-truck-loading me-2 text-gradient"></i>Inward Bill Entry</h2>
+      </div>
+      <div class="d-flex align-items-center gap-2">
+        <button class="btn-outline-custom btn-sm-custom" onclick="showHistory()"><i class="fas fa-history me-1"></i>History</button>
+        <button class="btn-primary-custom btn-sm-custom" onclick="downloadSampleCSV()"><i class="fas fa-download me-1"></i>Sample CSV</button>
+      </div>
+    </div>
+
+    <!-- KPI Cards -->
+    <div class="row g-3 mb-4">
+      <div class="col-lg-3 col-6"><div class="kpi-card"><div class="kpi-icon bg-primary-soft"><i class="fas fa-file-invoice"></i></div><div class="kpi-value" id="kpiTotalBills">0</div><div class="kpi-label">Total Inward Bills</div></div></div>
+      <div class="col-lg-3 col-6"><div class="kpi-card"><div class="kpi-icon bg-info-soft"><i class="fas fa-indian-rupee-sign"></i></div><div class="kpi-value" id="kpiTotalValue">₹0</div><div class="kpi-label">Total Purchase Value</div></div></div>
+      <div class="col-lg-3 col-6"><div class="kpi-card"><div class="kpi-icon bg-accent-soft"><i class="fas fa-calendar-check"></i></div><div class="kpi-value" id="kpiMonthlyBills">0</div><div class="kpi-label">This Month</div></div></div>
+      <div class="col-lg-3 col-6"><div class="kpi-card"><div class="kpi-icon bg-warning-soft"><i class="fas fa-building"></i></div><div class="kpi-value" id="kpiAgencies">0</div><div class="kpi-label">Agencies</div></div></div>
+    </div>
+
+    <!-- Entry Mode Tabs -->
+    <div class="inward-tabs">
+      <button class="inward-tab active" onclick="switchTab('manual')"><i class="fas fa-pen me-1"></i>Manual Entry</button>
+      <button class="inward-tab" onclick="switchTab('csv')"><i class="fas fa-file-csv me-1"></i>CSV Upload</button>
+    </div>
+
+    <!-- TAB: Manual Entry -->
+    <div class="tab-panel active" id="panel-manual">
+      <!-- Bill Header -->
+      <div class="kpi-card mb-4">
+        <h6 class="mb-3"><i class="fas fa-file-alt me-2 text-gradient"></i>Bill Details</h6>
+        <div class="row g-3">
+          <div class="col-md-4"><label class="form-label-custom">Agency Name *</label><input type="text" class="form-control-custom" id="agencyName" placeholder="e.g., Cipla Ltd" list="agencySuggestions"><datalist id="agencySuggestions"></datalist></div>
+          <div class="col-md-3"><label class="form-label-custom">Bill No *</label><input type="text" class="form-control-custom" id="billNo" placeholder="e.g., INV-2026-1234"></div>
+          <div class="col-md-3"><label class="form-label-custom">Bill Date *</label><input type="date" class="form-control-custom" id="billDate"></div>
+          <div class="col-md-2"><label class="form-label-custom">Payment Mode</label><select class="form-control-custom" id="paymentMode"><option value="credit">Credit</option><option value="cash">Cash</option></select></div>
+        </div>
+      </div>
+
+      <!-- Product Table -->
+      <div class="kpi-card mb-4">
+        <div class="d-flex align-items-center justify-content-between mb-3">
+          <h6 class="mb-0"><i class="fas fa-boxes me-2 text-gradient"></i>Product Items</h6>
+          <button class="btn-primary-custom btn-sm-custom" onclick="addRow()"><i class="fas fa-plus me-1"></i>Add Row</button>
+        </div>
+        <div class="table-container" style="overflow-x:auto;">
+          <table class="table mb-0" id="productTable">
+            <thead>
+              <tr>
+                <th style="min-width:50px">#</th>
+                <th style="min-width:200px">Product Name</th>
+                <th style="min-width:120px">Batch</th>
+                <th style="min-width:130px">Expiry</th>
+                <th style="min-width:80px">Qty</th>
+                <th style="min-width:70px">Free</th>
+                <th style="min-width:100px">MRP (₹)</th>
+                <th style="min-width:100px">Rate (₹)</th>
+                <th style="min-width:80px">GST %</th>
+                <th style="min-width:100px">Amount</th>
+                <th style="min-width:50px"></th>
+              </tr>
+            </thead>
+            <tbody id="productTableBody"></tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- Summary Bar -->
+      <div class="bill-summary-bar" id="summaryBar">
+        <div class="summary-item"><div class="summary-label">Items</div><div class="summary-value" id="sumItems">0</div></div>
+        <div class="summary-item"><div class="summary-label">Total Qty</div><div class="summary-value" id="sumQty">0</div></div>
+        <div class="summary-item"><div class="summary-label">Subtotal</div><div class="summary-value" id="sumSubtotal">₹0</div></div>
+        <div class="summary-item"><div class="summary-label">GST</div><div class="summary-value" id="sumGST">₹0</div></div>
+        <div class="summary-item"><div class="summary-label">Grand Total</div><div class="summary-value" id="sumGrandTotal">₹0</div></div>
+        <button class="btn btn-light btn-lg fw-bold" onclick="saveBill()" style="border-radius:var(--radius-lg);"><i class="fas fa-save me-1"></i>Save Bill</button>
+      </div>
+    </div>
+
+    <!-- TAB: CSV Upload -->
+    <div class="tab-panel" id="panel-csv">
+      <div class="kpi-card mb-4">
+        <h6 class="mb-3"><i class="fas fa-file-csv me-2 text-gradient"></i>Upload CSV File</h6>
+        <div class="csv-drop-zone" id="csvDropZone" onclick="document.getElementById('csvFileInput').click()">
+          <i class="fas fa-cloud-upload-alt d-block"></i>
+          <h5>Drop CSV file here or click to browse</h5>
+          <p class="text-muted">Required columns: product_name, batch, expiry, qty, free, mrp, rate, gst</p>
+          <input type="file" id="csvFileInput" accept=".csv,.txt" style="display:none" onchange="handleCSVFile(event)">
+        </div>
+      </div>
+
+      <!-- CSV Bill Header -->
+      <div class="kpi-card mb-4" id="csvHeaderSection" style="display:none;">
+        <h6 class="mb-3"><i class="fas fa-file-alt me-2 text-gradient"></i>Bill Details (CSV)</h6>
+        <div class="row g-3">
+          <div class="col-md-4"><label class="form-label-custom">Agency Name *</label><input type="text" class="form-control-custom" id="csvAgencyName" placeholder="Agency name"></div>
+          <div class="col-md-3"><label class="form-label-custom">Bill No *</label><input type="text" class="form-control-custom" id="csvBillNo" placeholder="Bill number"></div>
+          <div class="col-md-3"><label class="form-label-custom">Bill Date *</label><input type="date" class="form-control-custom" id="csvBillDate"></div>
+          <div class="col-md-2"><label class="form-label-custom">Payment</label><select class="form-control-custom" id="csvPaymentMode"><option value="credit">Credit</option><option value="cash">Cash</option></select></div>
+        </div>
+      </div>
+
+      <!-- Warnings -->
+      <div id="csvWarnings" style="display:none;"></div>
+
+      <!-- CSV Preview Table -->
+      <div class="kpi-card mb-4" id="csvPreview" style="display:none;">
+        <div class="d-flex align-items-center justify-content-between mb-3">
+          <h6 class="mb-0"><i class="fas fa-table me-2 text-gradient"></i>CSV Preview (<span id="csvRowCount">0</span> items)</h6>
+          <div class="d-flex gap-2">
+            <button class="btn-outline-custom btn-sm-custom" onclick="clearCSV()"><i class="fas fa-times me-1"></i>Clear</button>
+            <button class="btn-primary-custom btn-sm-custom" onclick="saveCSVBill()"><i class="fas fa-save me-1"></i>Save Inward Bill</button>
+          </div>
+        </div>
+        <div class="table-container" style="overflow-x:auto;">
+          <table class="table mb-0">
+            <thead><tr><th>#</th><th>Product</th><th>Batch</th><th>Expiry</th><th>Qty</th><th>Free</th><th>MRP</th><th>Rate</th><th>GST%</th><th>Amount</th></tr></thead>
+            <tbody id="csvPreviewBody"></tbody>
+            <tfoot><tr class="fw-bold" style="background:var(--gray-50);"><td colspan="4">Total</td><td id="csvTotalQty">0</td><td id="csvTotalFree">0</td><td></td><td></td><td></td><td id="csvTotalAmount">₹0</td></tr></tfoot>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- Stock Results Modal -->
+    <div class="modal fade" id="stockResultsModal" tabindex="-1">
+      <div class="modal-dialog modal-lg modal-dialog-centered modal-dialog-scrollable">
+        <div class="modal-content">
+          <div class="modal-header"><h5 class="modal-title"><i class="fas fa-check-circle me-2 text-success"></i>Inward Bill Saved</h5><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
+          <div class="modal-body" id="stockResultsBody"></div>
+          <div class="modal-footer"><button class="btn-primary-custom btn-sm-custom" data-bs-dismiss="modal">Done</button></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- History Modal -->
+    <div class="modal fade" id="historyModal" tabindex="-1">
+      <div class="modal-dialog modal-xl modal-dialog-centered modal-dialog-scrollable">
+        <div class="modal-content">
+          <div class="modal-header"><h5 class="modal-title"><i class="fas fa-history me-2 text-gradient"></i>Inward Bill History</h5><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
+          <div class="modal-body" id="historyBody"></div>
+        </div>
+      </div>
+    </div>
+  </main>
+
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+  <script src="../js/utils.js"></script>
+  <script src="../js/seed-data.js"></script>
+  <script src="../js/auth.js"></script>
+  <script src="../js/app.js"></script>
+  <script src="../js/inward.js"></script>
+
+  <script>
+    let rowCounter = 0;
+    let csvParsedItems = [];
+
+    document.addEventListener('DOMContentLoaded', async () => {
+      await SeedData.init();
+      Auth.init();
+      if (!Auth.isAdmin()) { window.location.href = 'login.html'; return; }
+      document.getElementById('billDate').valueAsDate = new Date();
+      document.getElementById('csvBillDate').valueAsDate = new Date();
+      addRow(); addRow(); addRow();
+      loadAgencySuggestions();
+      updateKPIs();
+      updatePendingCount();
+      setupDragDrop();
+    });
+
+    function updatePendingCount() {
+      const count = App.getPendingBillsCount();
+      const el = document.getElementById('sidebarPendingCount');
+      if (el) { el.textContent = count; el.style.display = count > 0 ? 'inline' : 'none'; }
+    }
+
+    function updateKPIs() {
+      const stats = Inward.getStats();
+      document.getElementById('kpiTotalBills').textContent = stats.totalBills;
+      document.getElementById('kpiTotalValue').textContent = Utils.formatCurrency(stats.totalValue);
+      document.getElementById('kpiMonthlyBills').textContent = stats.monthlyBills;
+      document.getElementById('kpiAgencies').textContent = stats.uniqueAgencies;
+    }
+
+    function loadAgencySuggestions() {
+      const bills = Inward.getAll();
+      const agencies = [...new Set(bills.map(b => b.agency_name))];
+      const dl = document.getElementById('agencySuggestions');
+      dl.innerHTML = agencies.map(a => `<option value="${Utils.sanitize(a)}">`).join('');
+    }
+
+    function switchTab(tab) {
+      document.querySelectorAll('.inward-tab').forEach(t => t.classList.remove('active'));
+      document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
+      document.querySelector(`.inward-tab[onclick*="${tab}"]`).classList.add('active');
+      document.getElementById(`panel-${tab}`).classList.add('active');
+    }
+
+    /* ---- Product Name Autocomplete ---- */
+    function getProductDatalist() {
+      const products = App.getAll('products');
+      return products.map(p => `<option value="${Utils.sanitize(p.name)}">`).join('');
+    }
+
+    /* ---- Dynamic Rows ---- */
+    function addRow() {
+      rowCounter++;
+      const tbody = document.getElementById('productTableBody');
+      const tr = document.createElement('tr');
+      tr.className = 'product-row';
+      tr.id = `row-${rowCounter}`;
+      tr.innerHTML = `
+        <td class="text-center fw-bold text-muted">${rowCounter}</td>
+        <td><input type="text" class="form-control-custom" placeholder="Product name" list="prodList-${rowCounter}" oninput="autoFillProduct(this, ${rowCounter})"><datalist id="prodList-${rowCounter}">${getProductDatalist()}</datalist></td>
+        <td><input type="text" class="form-control-custom" id="batch-${rowCounter}" placeholder="Batch #"></td>
+        <td><input type="date" class="form-control-custom" id="expiry-${rowCounter}"></td>
+        <td><input type="number" class="form-control-custom" id="qty-${rowCounter}" min="0" placeholder="0" oninput="calcRowAmount(${rowCounter})"></td>
+        <td><input type="number" class="form-control-custom" id="free-${rowCounter}" min="0" placeholder="0" value="0"></td>
+        <td><input type="number" class="form-control-custom" id="mrp-${rowCounter}" min="0" step="0.01" placeholder="0.00"></td>
+        <td><input type="number" class="form-control-custom" id="rate-${rowCounter}" min="0" step="0.01" placeholder="0.00" oninput="calcRowAmount(${rowCounter})"></td>
+        <td><select class="form-control-custom" id="gst-${rowCounter}" onchange="calcRowAmount(${rowCounter})"><option value="5">5%</option><option value="12">12%</option><option value="18">18%</option><option value="28">28%</option></select></td>
+        <td class="amount-cell" id="amount-${rowCounter}">₹0</td>
+        <td><button class="btn btn-sm btn-outline-danger" onclick="removeRow(${rowCounter})" title="Remove"><i class="fas fa-times"></i></button></td>
+      `;
+      tbody.appendChild(tr);
+      updateSummary();
+    }
+
+    function autoFillProduct(input, rowId) {
+      const name = input.value.trim();
+      const products = App.getAll('products');
+      const match = products.find(p => p.name.toLowerCase() === name.toLowerCase());
+      if (match) {
+        document.getElementById(`mrp-${rowId}`).value = match.mrp || match.price || '';
+        document.getElementById(`rate-${rowId}`).value = match.ptr_rate || match.cost_price || '';
+        document.getElementById(`gst-${rowId}`).value = match.gst_rate || 5;
+        calcRowAmount(rowId);
+      }
+    }
+
+    function removeRow(id) {
+      const row = document.getElementById(`row-${id}`);
+      if (row) { row.remove(); renumberRows(); updateSummary(); }
+    }
+
+    function renumberRows() {
+      const rows = document.querySelectorAll('#productTableBody .product-row');
+      rows.forEach((row, idx) => { row.querySelector('td').textContent = idx + 1; });
+    }
+
+    function calcRowAmount(id) {
+      const qty = parseFloat(document.getElementById(`qty-${id}`)?.value) || 0;
+      const rate = parseFloat(document.getElementById(`rate-${id}`)?.value) || 0;
+      const amount = qty * rate;
+      const el = document.getElementById(`amount-${id}`);
+      if (el) el.textContent = Utils.formatCurrency(amount);
+      updateSummary();
+    }
+
+    function updateSummary() {
+      const rows = document.querySelectorAll('#productTableBody .product-row');
+      let items = 0, totalQty = 0, subtotal = 0, totalGST = 0;
+      rows.forEach(row => {
+        const id = row.id.split('-')[1];
+        const qty = parseFloat(document.getElementById(`qty-${id}`)?.value) || 0;
+        const free = parseFloat(document.getElementById(`free-${id}`)?.value) || 0;
+        const rate = parseFloat(document.getElementById(`rate-${id}`)?.value) || 0;
+        const gst = parseFloat(document.getElementById(`gst-${id}`)?.value) || 0;
+        const amount = qty * rate;
+        if (qty > 0 || rate > 0) items++;
+        totalQty += qty + free;
+        subtotal += amount;
+        totalGST += (amount * gst) / 100;
+      });
+      document.getElementById('sumItems').textContent = items;
+      document.getElementById('sumQty').textContent = totalQty;
+      document.getElementById('sumSubtotal').textContent = Utils.formatCurrency(subtotal);
+      document.getElementById('sumGST').textContent = Utils.formatCurrency(totalGST);
+      document.getElementById('sumGrandTotal').textContent = Utils.formatCurrency(subtotal + totalGST);
+    }
+
+    /* ---- Save Manual Bill ---- */
+    function saveBill() {
+      const header = {
+        agency_name: document.getElementById('agencyName').value,
+        bill_no: document.getElementById('billNo').value,
+        bill_date: document.getElementById('billDate').value,
+        payment_mode: document.getElementById('paymentMode').value
+      };
+      const items = [];
+      document.querySelectorAll('#productTableBody .product-row').forEach(row => {
+        const id = row.id.split('-')[1];
+        const inputs = row.querySelectorAll('input');
+        const pName = inputs[0]?.value?.trim();
+        if (!pName) return;
+        items.push({
+          product_name: pName,
+          batch: document.getElementById(`batch-${id}`)?.value || '',
+          expiry: document.getElementById(`expiry-${id}`)?.value || '',
+          qty: document.getElementById(`qty-${id}`)?.value || '0',
+          free: document.getElementById(`free-${id}`)?.value || '0',
+          mrp: document.getElementById(`mrp-${id}`)?.value || '0',
+          rate: document.getElementById(`rate-${id}`)?.value || '0',
+          gst: document.getElementById(`gst-${id}`)?.value || '5'
+        });
+      });
+      if (items.length === 0) { Utils.showToast('Please add at least one product', 'error'); return; }
+
+      const result = Inward.createBill(header, items);
+      if (!result.success) {
+        Utils.showToast(result.errors.join('\n'), 'error');
+        return;
+      }
+      showStockResults(result.bill, result.stockResults);
+      resetManualForm();
+      updateKPIs();
+      loadAgencySuggestions();
+    }
+
+    function resetManualForm() {
+      document.getElementById('agencyName').value = '';
+      document.getElementById('billNo').value = '';
+      document.getElementById('billDate').valueAsDate = new Date();
+      document.getElementById('productTableBody').innerHTML = '';
+      rowCounter = 0;
+      addRow(); addRow(); addRow();
+      updateSummary();
+    }
+
+    /* ---- CSV Handling ---- */
+    function setupDragDrop() {
+      const zone = document.getElementById('csvDropZone');
+      ['dragenter','dragover'].forEach(e => zone.addEventListener(e, ev => { ev.preventDefault(); zone.classList.add('dragover'); }));
+      ['dragleave','drop'].forEach(e => zone.addEventListener(e, ev => { ev.preventDefault(); zone.classList.remove('dragover'); }));
+      zone.addEventListener('drop', ev => {
+        const file = ev.dataTransfer.files[0];
+        if (file) processCSVFile(file);
+      });
+    }
+
+    function handleCSVFile(e) { if (e.target.files[0]) processCSVFile(e.target.files[0]); }
+
+    function processCSVFile(file) {
+      if (!file.name.match(/\.(csv|txt)$/i)) { Utils.showToast('Please upload a CSV file', 'error'); return; }
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        const result = Inward.parseCSV(e.target.result);
+        if (!result.success) { Utils.showToast(result.error, 'error'); return; }
+        csvParsedItems = result.items;
+        const warnings = Inward.checkDuplicateBatches(csvParsedItems);
+        if (warnings.length > 0) {
+          document.getElementById('csvWarnings').style.display = 'block';
+          document.getElementById('csvWarnings').innerHTML = `<div class="warning-box"><h6><i class="fas fa-exclamation-triangle me-1"></i> Warnings</h6><ul class="mb-0 mt-2">${warnings.map(w => `<li style="font-size:var(--fs-sm);">${Utils.sanitize(w)}</li>`).join('')}</ul></div>`;
+        } else { document.getElementById('csvWarnings').style.display = 'none'; }
+        renderCSVPreview();
+        document.getElementById('csvHeaderSection').style.display = 'block';
+        document.getElementById('csvPreview').style.display = 'block';
+        Utils.showToast(`${csvParsedItems.length} items parsed from CSV`, 'success');
+      };
+      reader.readAsText(file);
+    }
+
+    function renderCSVPreview() {
+      const tbody = document.getElementById('csvPreviewBody');
+      let totalQty = 0, totalFree = 0, totalAmt = 0;
+      tbody.innerHTML = csvParsedItems.map((item, i) => {
+        const amt = item.qty * item.rate;
+        totalQty += item.qty; totalFree += item.free; totalAmt += amt;
+        const isExp = item.expiry && Utils.isExpired(item.expiry);
+        return `<tr class="${isExp ? 'table-danger' : ''}"><td>${i+1}</td><td>${Utils.sanitize(item.product_name)}</td><td><strong>${Utils.sanitize(item.batch)}</strong></td><td>${item.expiry ? Utils.formatDate(item.expiry) : '—'}${isExp ? ' ⚠️' : ''}</td><td>${item.qty}</td><td>${item.free}</td><td>${Utils.formatCurrency(item.mrp)}</td><td>${Utils.formatCurrency(item.rate)}</td><td>${item.gst}%</td><td class="amount-cell">${Utils.formatCurrency(amt)}</td></tr>`;
+      }).join('');
+      document.getElementById('csvRowCount').textContent = csvParsedItems.length;
+      document.getElementById('csvTotalQty').textContent = totalQty;
+      document.getElementById('csvTotalFree').textContent = totalFree;
+      document.getElementById('csvTotalAmount').textContent = Utils.formatCurrency(totalAmt);
+    }
+
+    function saveCSVBill() {
+      if (csvParsedItems.length === 0) { Utils.showToast('No CSV data', 'error'); return; }
+      const header = {
+        agency_name: document.getElementById('csvAgencyName').value,
+        bill_no: document.getElementById('csvBillNo').value,
+        bill_date: document.getElementById('csvBillDate').value,
+        payment_mode: document.getElementById('csvPaymentMode').value
+      };
+      const result = Inward.createBill(header, csvParsedItems);
+      if (!result.success) { Utils.showToast(result.errors.join('\n'), 'error'); return; }
+      showStockResults(result.bill, result.stockResults);
+      clearCSV();
+      updateKPIs();
+      loadAgencySuggestions();
+    }
+
+    function clearCSV() {
+      csvParsedItems = [];
+      document.getElementById('csvPreview').style.display = 'none';
+      document.getElementById('csvHeaderSection').style.display = 'none';
+      document.getElementById('csvWarnings').style.display = 'none';
+      document.getElementById('csvFileInput').value = '';
+    }
+
+    /* ---- Results & History ---- */
+    function showStockResults(bill, stockResults) {
+      const icons = { added: 'fa-plus-circle', updated: 'fa-sync-alt', not_found: 'fa-question-circle' };
+      document.getElementById('stockResultsBody').innerHTML = `
+        <div class="alert" style="background:var(--primary-50);border:1px solid var(--primary-200);border-radius:var(--radius-lg);"><h6><i class="fas fa-receipt me-1"></i>${bill.inward_number}</h6><div class="row text-center mt-2"><div class="col-4"><small class="text-muted">Agency</small><div class="fw-bold">${Utils.sanitize(bill.agency_name)}</div></div><div class="col-4"><small class="text-muted">Items</small><div class="fw-bold">${bill.item_count}</div></div><div class="col-4"><small class="text-muted">Grand Total</small><div class="fw-bold text-primary">${Utils.formatCurrency(bill.grand_total)}</div></div></div></div>
+        <h6 class="mt-3 mb-2"><i class="fas fa-boxes me-1"></i>Stock Update Results</h6>
+        <div class="table-container"><table class="table mb-0"><thead><tr><th>Product</th><th>Batch</th><th>Status</th><th>Details</th></tr></thead><tbody>${stockResults.map(r => `<tr><td>${Utils.sanitize(r.product_name)}</td><td><strong>${Utils.sanitize(r.batch)}</strong></td><td><span class="stock-result-${r.status}"><i class="fas ${icons[r.status]} me-1"></i>${r.status.replace('_', ' ').toUpperCase()}</span></td><td style="font-size:var(--fs-sm);">${Utils.sanitize(r.message)}</td></tr>`).join('')}</tbody></table></div>`;
+      new bootstrap.Modal(document.getElementById('stockResultsModal')).show();
+    }
+
+    function showHistory() {
+      const bills = Inward.getAll().sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+      document.getElementById('historyBody').innerHTML = bills.length === 0
+        ? '<div class="empty-state"><i class="fas fa-inbox"></i><h4>No inward bills yet</h4><p>Create your first inward entry above.</p></div>'
+        : bills.map(b => `
+          <div class="history-card" onclick="viewBillDetail('${b.id}')">
+            <div class="d-flex justify-content-between align-items-start">
+              <div><strong style="color:var(--primary-700);">${b.inward_number}</strong><span class="ms-2 text-muted" style="font-size:var(--fs-sm);">${Utils.formatDate(b.created_at)}</span><div style="font-size:var(--fs-sm);" class="mt-1"><i class="fas fa-building me-1 text-muted"></i>${Utils.sanitize(b.agency_name)} <span class="mx-2">|</span><i class="fas fa-file-invoice me-1 text-muted"></i>${Utils.sanitize(b.bill_no)} <span class="mx-2">|</span><span class="badge ${b.payment_mode === 'cash' ? 'bg-success' : 'bg-info'}">${b.payment_mode}</span></div></div>
+              <div class="text-end"><div class="fw-bold" style="color:var(--primary-700);">${Utils.formatCurrency(b.grand_total)}</div><small class="text-muted">${b.item_count} items, ${b.total_qty} units</small></div>
+            </div>
+          </div>`).join('');
+      new bootstrap.Modal(document.getElementById('historyModal')).show();
+    }
+
+    function viewBillDetail(id) {
+      const bill = Inward.getById(id);
+      if (!bill) return;
+      bootstrap.Modal.getInstance(document.getElementById('historyModal'))?.hide();
+      setTimeout(() => {
+        document.getElementById('stockResultsBody').innerHTML = `
+          <div class="alert" style="background:var(--primary-50);border:1px solid var(--primary-200);border-radius:var(--radius-lg);"><div class="row"><div class="col-md-3"><small class="text-muted">Inward #</small><div class="fw-bold">${bill.inward_number}</div></div><div class="col-md-3"><small class="text-muted">Agency</small><div class="fw-bold">${Utils.sanitize(bill.agency_name)}</div></div><div class="col-md-3"><small class="text-muted">Bill No</small><div class="fw-bold">${Utils.sanitize(bill.bill_no)}</div></div><div class="col-md-3"><small class="text-muted">Date</small><div class="fw-bold">${Utils.formatDate(bill.bill_date)}</div></div></div></div>
+          <div class="table-container"><table class="table mb-0"><thead><tr><th>#</th><th>Product</th><th>Batch</th><th>Expiry</th><th>Qty</th><th>Free</th><th>MRP</th><th>Rate</th><th>GST</th><th>Amount</th></tr></thead><tbody>${bill.items.map((item, i) => `<tr><td>${i+1}</td><td>${Utils.sanitize(item.product_name)}</td><td><strong>${Utils.sanitize(item.batch)}</strong></td><td>${item.expiry ? Utils.formatDate(item.expiry) : '—'}</td><td>${item.qty}</td><td>${item.free}</td><td>${Utils.formatCurrency(item.mrp)}</td><td>${Utils.formatCurrency(item.rate)}</td><td>${item.gst}%</td><td class="amount-cell">${Utils.formatCurrency(item.amount)}</td></tr>`).join('')}</tbody><tfoot><tr class="fw-bold" style="background:var(--gray-50);"><td colspan="6"></td><td colspan="3" class="text-end">Grand Total</td><td class="amount-cell">${Utils.formatCurrency(bill.grand_total)}</td></tr></tfoot></table></div>`;
+        document.querySelector('#stockResultsModal .modal-title').innerHTML = `<i class="fas fa-file-invoice me-2 text-gradient"></i>${bill.inward_number}`;
+        new bootstrap.Modal(document.getElementById('stockResultsModal')).show();
+      }, 300);
+    }
+
+    function downloadSampleCSV() {
+      const csv = Inward.getSampleCSV();
+      const blob = new Blob([csv], { type: 'text/csv' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url; a.download = 'inward_sample.csv'; a.click();
+      URL.revokeObjectURL(url);
+      Utils.showToast('Sample CSV downloaded', 'success');
+    }
+  </script>
+</body>
+</html>
