@@ -19,11 +19,34 @@ const Utils = {
    * Format date in dd-mm-yyyy format
    */
   formatDate(dateStr) {
+    if (!dateStr) return '-';
     const date = new Date(dateStr);
     const dd = String(date.getDate()).padStart(2, '0');
     const mm = String(date.getMonth() + 1).padStart(2, '0');
     const yyyy = date.getFullYear();
     return `${dd}-${mm}-${yyyy}`;
+  },
+
+  /**
+   * Format expiry date in MM/YYYY or MM/YY format
+   * @param {string} dateStr - Date string or YYYY-MM
+   * @param {boolean} short - Whether to show YY (true) or YYYY (false)
+   */
+  formatExpiry(dateStr, short = false) {
+    if (!dateStr) return '-';
+    // If it's already YYYY-MM, we can split it
+    let [year, month] = dateStr.split('-');
+    
+    // If it's a full date, new Date() will parse it
+    if (!month || month.length > 2) {
+      const d = new Date(dateStr);
+      if (isNaN(d)) return dateStr; // fallback
+      month = String(d.getMonth() + 1).padStart(2, '0');
+      year = String(d.getFullYear());
+    }
+
+    const yy = short ? year.slice(-2) : year;
+    return `${month}/${yy}`;
   },
 
   /**

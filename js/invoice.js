@@ -889,9 +889,16 @@ const Invoice = {
    */
   formatExpiry(dateStr) {
     if (!dateStr) return '-';
+    // Use Utils.formatExpiry with short=true which provides MM/YY
+    if (window.Utils && window.Utils.formatExpiry) {
+      return window.Utils.formatExpiry(dateStr, true);
+    }
+    // Fallback if Utils not loaded
     const d = new Date(dateStr);
-    const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-    return `${months[d.getMonth()]}-${String(d.getFullYear()).slice(-2)}`;
+    if (isNaN(d)) return dateStr;
+    const mm = String(d.getMonth() + 1).padStart(2, '0');
+    const yy = String(d.getFullYear()).slice(-2);
+    return `${mm}/${yy}`;
   },
 
   /**
