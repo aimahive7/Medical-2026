@@ -270,7 +270,18 @@
         <td><input type="number" class="form-control-custom" id="free-${rowCounter}" min="0" placeholder="0" value="0"></td>
         <td><input type="number" class="form-control-custom" id="mrp-${rowCounter}" min="0" step="0.01" placeholder="0.00"></td>
         <td><input type="number" class="form-control-custom" id="rate-${rowCounter}" min="0" step="0.01" placeholder="0.00" oninput="calcRowAmount(${rowCounter})"></td>
-        <td><select class="form-control-custom" id="gst-${rowCounter}" onchange="calcRowAmount(${rowCounter})"><option value="5">5%</option><option value="12">12%</option><option value="18">18%</option><option value="28">28%</option></select></td>
+        <td>
+          <div class="d-flex flex-column gap-1">
+            <select class="form-control-custom" id="gst-${rowCounter}" onchange="handleGstChange(${rowCounter})">
+              <option value="0">0%</option>
+              <option value="5" selected>5%</option>
+              <option value="18">18%</option>
+              <option value="28">28%</option>
+              <option value="custom">Custom</option>
+            </select>
+            <input type="number" class="form-control-custom d-none" id="customGst-${rowCounter}" step="0.1" placeholder="GST %" oninput="calcRowAmount(${rowCounter})">
+          </div>
+        </td>
         <td class="amount-cell" id="amount-${rowCounter}">₹0</td>
         <td><button class="btn btn-sm btn-outline-danger" onclick="removeRow(${rowCounter})" title="Remove"><i class="fas fa-times"></i></button></td>
       `;
@@ -285,9 +296,32 @@
       if (match) {
         document.getElementById(`mrp-${rowId}`).value = match.mrp || match.price || '';
         document.getElementById(`rate-${rowId}`).value = match.ptr_rate || match.cost_price || '';
-        document.getElementById(`gst-${rowId}`).value = match.gst_rate || 5;
+        const gstVal = match.gst_rate || 5;
+        const select = document.getElementById(`gst-${rowId}`);
+        const customField = document.getElementById(`customGst-${rowId}`);
+        
+        const standardRates = ["0", "5", "18", "28"];
+        if (standardRates.includes(String(gstVal))) {
+          select.value = gstVal;
+          customField.classList.add('d-none');
+        } else {
+          select.value = 'custom';
+          customField.value = gstVal;
+          customField.classList.remove('d-none');
+        }
         calcRowAmount(rowId);
       }
+    }
+
+    function handleGstChange(id) {
+      const select = document.getElementById(`gst-${id}`);
+      const customField = document.getElementById(`customGst-${id}`);
+      if (select.value === 'custom') {
+        customField.classList.remove('d-none');
+      } else {
+        customField.classList.add('d-none');
+      }
+      calcRowAmount(id);
     }
 
     function removeRow(id) {
@@ -300,12 +334,25 @@
       rows.forEach((row, idx) => { row.querySelector('td').textContent = idx + 1; });
     }
 
+    function getGstValue(id) {
+      const select = document.getElementById(`gst-${id}`);
+      if (select && select.value === 'custom') {
+        return parseFloat(document.getElementById(`customGst-${id}`)?.value) || 0;
+      }
+      return parseFloat(select?.value) || 0;
+    }
+
     function calcRowAmount(id) {
       const qty = parseFloat(document.getElementById(`qty-${id}`)?.value) || 0;
       const rate = parseFloat(document.getElementById(`rate-${id}`)?.value) || 0;
-      const amount = qty * rate;
+      const gst = getGstValue(id);
+      
+      const baseAmount = qty * rate;
+      const gstAmount = (baseAmount * gst) / 100;
+      const totalAmount = baseAmount + gstAmount;
+
       const el = document.getElementById(`amount-${id}`);
-      if (el) el.textContent = Utils.formatCurrency(amount);
+      if (el) el.textContent = Utils.formatCurrency(totalAmount);
       updateSummary();
     }
 
@@ -317,12 +364,15 @@
         const qty = parseFloat(document.getElementById(`qty-${id}`)?.value) || 0;
         const free = parseFloat(document.getElementById(`free-${id}`)?.value) || 0;
         const rate = parseFloat(document.getElementById(`rate-${id}`)?.value) || 0;
-        const gst = parseFloat(document.getElementById(`gst-${id}`)?.value) || 0;
-        const amount = qty * rate;
+        const gst = getGstValue(id);
+        
+        const baseAmount = qty * rate;
+        const gstAmount = (baseAmount * gst) / 100;
+        
         if (qty > 0 || rate > 0) items++;
         totalQty += qty + free;
-        subtotal += amount;
-        totalGST += (amount * gst) / 100;
+        subtotal += baseAmount;
+        totalGST += gstAmount;
       });
       document.getElementById('sumItems').textContent = items;
       document.getElementById('sumQty').textContent = totalQty;
@@ -353,7 +403,7 @@
           free: document.getElementById(`free-${id}`)?.value || '0',
           mrp: document.getElementById(`mrp-${id}`)?.value || '0',
           rate: document.getElementById(`rate-${id}`)?.value || '0',
-          gst: document.getElementById(`gst-${id}`)?.value || '5'
+          gst: getGstValue(id)
         });
       });
       if (items.length === 0) { Utils.showToast('Please add at least one product', 'error'); return; }
