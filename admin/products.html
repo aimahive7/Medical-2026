@@ -117,6 +117,7 @@
             <!-- Tab navigation -->
             <ul class="nav nav-tabs mb-3" id="prodTabs" role="tablist">
               <li class="nav-item"><a class="nav-link active" data-bs-toggle="tab" href="#tabMaster" role="tab"><i class="fas fa-box-open me-1"></i>Product Master</a></li>
+              <li class="nav-item"><a class="nav-link" data-bs-toggle="tab" href="#tabAdvanced" role="tab"><i class="fas fa-cogs me-1"></i>Advanced Info</a></li>
               <li class="nav-item"><a class="nav-link" data-bs-toggle="tab" href="#tabStock" role="tab"><i class="fas fa-boxes me-1"></i>Add Stock / Batch</a></li>
             </ul>
 
@@ -124,18 +125,30 @@
               <!-- TAB: Product Master -->
               <div class="tab-pane fade show active" id="tabMaster" role="tabpanel">
                 <div class="row g-3">
-                  <div class="col-md-8">
+                  <div class="col-md-6">
                     <label class="form-label-custom">Product Name *</label>
                     <input type="text" class="form-control-custom" id="prodName" required>
                   </div>
-                  <div class="col-md-4">
+                  <div class="col-md-3">
+                    <label class="form-label-custom">Item Type</label>
+                    <select class="form-control-custom" id="prodItemType">
+                      <option value="Tablet">Tablet</option>
+                      <option value="Syrup">Syrup</option>
+                      <option value="Injection">Injection</option>
+                      <option value="Capsule">Capsule</option>
+                      <option value="Ointment">Ointment</option>
+                      <option value="Drops">Drops</option>
+                      <option value="Other">Other</option>
+                    </select>
+                  </div>
+                  <div class="col-md-3">
                     <label class="form-label-custom">Category *</label>
                     <select class="form-control-custom" id="prodCategory" required onchange="onCategoryChange()">
+                      <option value="Antibiotic">Antibiotic</option>
+                      <option value="Painkiller">Painkiller</option>
                       <option value="Medicines">Medicines</option>
                       <option value="Supplements">Supplements</option>
                       <option value="Medical Devices">Medical Devices</option>
-                      <option value="Personal Care">Personal Care</option>
-                      <option value="Baby Care">Baby Care</option>
                       <option value="Ayurvedic">Ayurvedic</option>
                     </select>
                   </div>
@@ -143,25 +156,39 @@
                     <label class="form-label-custom">Short Description *</label>
                     <textarea class="form-control-custom" id="prodDesc" rows="2" required></textarea>
                   </div>
-                  <div class="col-md-4">
+                  <div class="col-md-3">
                     <label class="form-label-custom">HSN Code *</label>
                     <input type="text" class="form-control-custom" id="prodHSN" placeholder="e.g., 3004" required>
                   </div>
-                  <div class="col-md-8">
+                  <div class="col-md-5">
                     <label class="form-label-custom">Composition / Salt *</label>
                     <input type="text" class="form-control-custom" id="prodComposition" placeholder="e.g., Paracetamol 650mg" required>
                   </div>
-                  <div class="col-md-6">
+                  <div class="col-md-4">
                     <label class="form-label-custom">Manufacturer (MFG) *</label>
                     <input type="text" class="form-control-custom" id="prodManufacturer" placeholder="e.g., Cipla Ltd" required>
                   </div>
                   <div class="col-md-3">
-                    <label class="form-label-custom">Dosage / Strength</label>
+                    <label class="form-label-custom">Packing</label>
+                    <input type="text" class="form-control-custom" id="prodPacking" placeholder="e.g., 10x10 tablets">
+                  </div>
+                  <div class="col-md-2">
+                    <label class="form-label-custom">Dosage</label>
                     <input type="text" class="form-control-custom" id="prodDosage" placeholder="e.g., 500mg">
                   </div>
-                  <div class="col-md-3">
-                    <label class="form-label-custom">Form / Pack</label>
-                    <input type="text" class="form-control-custom" id="prodStrength" placeholder="e.g., 10 Tablets">
+                  <div class="col-md-2">
+                    <label class="form-label-custom">Conv. Unit</label>
+                    <input type="number" class="form-control-custom" id="prodConvUnit" placeholder="10">
+                  </div>
+                  <div class="col-md-2">
+                    <label class="form-label-custom">Scheme/Disc %</label>
+                    <input type="number" step="0.01" class="form-control-custom" id="prodScheme" placeholder="0.0">
+                  </div>
+                  <div class="col-md-3 d-flex align-items-end mb-2">
+                    <div class="form-check form-switch mt-2">
+                      <input class="form-check-input" type="checkbox" id="prodLockDiscount">
+                      <label class="form-check-label" for="prodLockDiscount">Lock Discount</label>
+                    </div>
                   </div>
                   <div class="col-md-3">
                     <label class="form-label-custom">Default GST Rate (%)</label>
@@ -210,8 +237,8 @@
                   </div>
 
                   <div class="col-12">
-                    <label class="form-label-custom">About Product (Detailed Description)</label>
-                    <textarea class="form-control-custom" id="prodAbout" rows="3" placeholder="Detailed product description for customers..."></textarea>
+                    <label class="form-label-custom">Product Details & Usage</label>
+                    <textarea class="form-control-custom" id="prodDetails" rows="3" placeholder="Detailed usage and product details..."></textarea>
                   </div>
                   <div class="col-md-6">
                     <label class="form-label-custom">Product Image</label>
@@ -224,6 +251,54 @@
                       <img id="imgPreviewTag" style="width:100%;height:100%;object-fit:cover;display:none;">
                     </div>
                     <input type="hidden" id="prodImageData">
+                  </div>
+                </div>
+              </div>
+
+              <!-- TAB: Advanced Info -->
+              <div class="tab-pane fade" id="tabAdvanced" role="tabpanel">
+                <h6 class="mb-3">Classification & Storage</h6>
+                <div class="row g-3 mb-4">
+                  <div class="col-md-4">
+                    <label class="form-label-custom">Stored In</label>
+                    <select class="form-control-custom" id="prodStorage">
+                      <option value="Room Temp">Room Temp</option>
+                      <option value="Fridge">Fridge</option>
+                      <option value="Cool & Dry">Cool & Dry</option>
+                    </select>
+                  </div>
+                  <div class="col-md-4">
+                    <label class="form-label-custom">Barcode</label>
+                    <input type="text" class="form-control-custom" id="prodBarcode" placeholder="Scan or enter barcode">
+                  </div>
+                </div>
+
+                <h6 class="mb-3">Advanced Flags (ON/OFF)</h6>
+                <div class="row g-3 mb-4">
+                  <div class="col-md-3"><div class="form-check form-switch"><input class="form-check-input" type="checkbox" id="flagSubstitute"> <label class="form-check-label">Substitute Allowed</label></div></div>
+                  <div class="col-md-3"><div class="form-check form-switch"><input class="form-check-input" type="checkbox" id="flagSchedule"> <label class="form-check-label text-danger fw-bold">Schedule Drug</label></div></div>
+                  <div class="col-md-3"><div class="form-check form-switch"><input class="form-check-input" type="checkbox" id="flagReturnable" checked> <label class="form-check-label">Returnable</label></div></div>
+                  <div class="col-md-3"><div class="form-check form-switch"><input class="form-check-input" type="checkbox" id="flagRestricted"> <label class="form-check-label">Restricted Drug</label></div></div>
+                  
+                  <div class="col-md-3"><div class="form-check form-switch"><input class="form-check-input" type="checkbox" id="flagAntiTB"> <label class="form-check-label">Anti TB Drug</label></div></div>
+                  <div class="col-md-3"><div class="form-check form-switch"><input class="form-check-input" type="checkbox" id="flagCorona"> <label class="form-check-label">Corona Monitor</label></div></div>
+                  <div class="col-md-3"><div class="form-check form-switch"><input class="form-check-input" type="checkbox" id="flagSelfBarcode"> <label class="form-check-label">Self Barcode</label></div></div>
+                  <div class="col-md-3"><div class="form-check form-switch"><input class="form-check-input" type="checkbox" id="flagPrescription"> <label class="form-check-label text-warning fw-bold">Prescription Required</label></div></div>
+                </div>
+
+                <h6 class="mb-3">Suppliers</h6>
+                <div class="row g-3">
+                  <div class="col-md-4">
+                    <label class="form-label-custom">Supplier Name 1</label>
+                    <input type="text" class="form-control-custom" id="prodSupplier1">
+                  </div>
+                  <div class="col-md-4">
+                    <label class="form-label-custom">Supplier Name 2</label>
+                    <input type="text" class="form-control-custom" id="prodSupplier2">
+                  </div>
+                  <div class="col-md-4">
+                    <label class="form-label-custom">Supplier Name 3</label>
+                    <input type="text" class="form-control-custom" id="prodSupplier3">
                   </div>
                 </div>
               </div>
@@ -355,7 +430,7 @@
       if (el) { el.textContent = count; el.style.display = count > 0 ? 'inline' : 'none'; }
     }
 
-    function loadProductsTable() {
+    async function loadProductsTable() {
       const filters = {
         search: document.getElementById('searchProducts').value.trim(),
         category: document.getElementById('filterCategory').value,
@@ -363,17 +438,16 @@
         sort: document.getElementById('filterSort').value
       };
 
-      const products = App.getProducts(filters);
+      const products = await App.apiGetProducts(filters);
       document.getElementById('totalProductsCount').textContent = `${products.length} products`;
       const settings = App.getSettings();
       const threshold = settings.low_stock_threshold || 10;
 
       document.getElementById('productsTableBody').innerHTML = products.map(p => {
-        const totalStock = App.getTotalStock(p.id) || p.stock_qty;
+        const totalStock = p.stock_qty || 0; // Temporarily using 0, batches logic to be migrated next
         const stock = Utils.getStockStatus(totalStock, threshold);
-        const batches = App.getProductBatches(p.id);
-        const mrp = p.mrp || p.price;
-        const gstRate = p.gst_rate || Utils.getDefaultGSTRate(p.category);
+        const mrp = p.mrp || p.price || 0;
+        const gstRate = p.gst_percent || 5;
         
         return `
           <tr class="${p.is_hidden ? 'opacity-50' : ''}">
@@ -398,7 +472,7 @@
             </td>
             <td>
               <button class="btn btn-sm p-0" onclick="showBatchesModal('${p.id}')" title="View Batches">
-                <span class="badge bg-secondary">${batches.length}</span>
+                <span class="badge bg-secondary">0</span>
               </button>
             </td>
             <td>
@@ -443,27 +517,48 @@
       new bootstrap.Modal(document.getElementById('productModal')).show();
     }
 
-    function editProduct(id) {
-      const p = App.getById('products', id);
-      if (!p) return;
+    async function editProduct(id) {
+      const resp = await App.apiGetProduct(id);
+      if (!resp) return;
+      const p = resp.product;
       currentEditProductId = id;
 
       document.getElementById('productModalTitle').innerHTML = '<i class="fas fa-pen me-2"></i>Edit Product';
       document.getElementById('editProductId').value = id;
-      document.getElementById('prodName').value = p.name;
-      document.getElementById('prodCategory').value = p.category;
-      document.getElementById('prodDesc').value = p.description;
+      document.getElementById('prodName').value = p.name || '';
+      document.getElementById('prodCategory').value = p.category || '';
+      document.getElementById('prodItemType').value = p.item_type || '';
+      document.getElementById('prodDesc').value = p.description || '';
       document.getElementById('prodHSN').value = p.hsn_code || '';
       document.getElementById('prodComposition').value = p.composition || '';
       document.getElementById('prodManufacturer').value = p.manufacturer || '';
+      document.getElementById('prodPacking').value = p.packing || '';
+      document.getElementById('prodConvUnit').value = p.conversion_unit || '';
+      document.getElementById('prodScheme').value = p.scheme_discount || '';
+      document.getElementById('prodLockDiscount').checked = p.lock_discount ? true : false;
       document.getElementById('prodDosage').value = p.dosage || '';
-      document.getElementById('prodStrength').value = p.strength || '';
-      document.getElementById('prodGSTRate').value = p.gst_rate || Utils.getDefaultGSTRate(p.category);
-      document.getElementById('prodMRP').value = p.mrp || p.price || '';
-      document.getElementById('prodPTR').value = p.ptr_rate || p.cost_price || '';
+      document.getElementById('prodGSTRate').value = p.gst_percent || Utils.getDefaultGSTRate(p.category);
+      document.getElementById('prodMRP').value = p.mrp || '';
+      document.getElementById('prodPTR').value = p.ptr_rate || '';
       document.getElementById('prodStatus').value = p.status || 'active';
-      document.getElementById('prodAbout').value = p.about || '';
-      document.getElementById('prodImageData').value = p.image || '';
+      document.getElementById('prodDetails').value = p.details || '';
+      document.getElementById('prodImageData').value = p.image_url || '';
+      
+      // Advanced mapping
+      document.getElementById('prodStorage').value = p.storage || 'Room Temp';
+      document.getElementById('prodBarcode').value = p.barcode || '';
+      document.getElementById('flagSubstitute').checked = p.substitute_allowed;
+      document.getElementById('flagSchedule').checked = p.schedule_drug;
+      document.getElementById('flagReturnable').checked = p.returnable;
+      document.getElementById('flagRestricted').checked = p.restricted_drug;
+      document.getElementById('flagAntiTB').checked = p.anti_tb;
+      document.getElementById('flagCorona').checked = p.corona_monitor;
+      document.getElementById('flagSelfBarcode').checked = p.self_barcode;
+      document.getElementById('flagPrescription').checked = p.prescription_required;
+      
+      document.getElementById('prodSupplier1').value = p.supplier1 || '';
+      document.getElementById('prodSupplier2').value = p.supplier2 || '';
+      document.getElementById('prodSupplier3').value = p.supplier3 || '';
 
       // Image preview
       if (p.image) {
@@ -490,7 +585,7 @@
       }, 300);
     }
 
-    function saveProduct(e) {
+    async function saveProduct(e) {
       e.preventDefault();
       const editId = document.getElementById('editProductId').value;
       const category = document.getElementById('prodCategory').value;
@@ -500,37 +595,46 @@
 
       const productData = {
         name: document.getElementById('prodName').value.trim(),
+        item_type: document.getElementById('prodItemType').value,
         category: category,
         description: document.getElementById('prodDesc').value.trim(),
         hsn_code: document.getElementById('prodHSN').value.trim(),
         composition: document.getElementById('prodComposition').value.trim(),
         manufacturer: document.getElementById('prodManufacturer').value.trim(),
-        dosage: document.getElementById('prodDosage').value.trim(),
-        strength: document.getElementById('prodStrength').value.trim(),
-        gst_rate: gstRate,
+        packing: document.getElementById('prodPacking').value.trim(),
+        conversion_unit: parseInt(document.getElementById('prodConvUnit').value) || 1,
+        scheme_discount: parseFloat(document.getElementById('prodScheme').value) || 0,
+        lock_discount: document.getElementById('prodLockDiscount').checked,
+        gst_percent: gstRate,
         mrp: mrp,
         ptr_rate: ptr,
-        price: mrp,       // backward compat
-        cost_price: ptr,   // backward compat
-        about: document.getElementById('prodAbout').value.trim(),
-        image: document.getElementById('prodImageData').value,
-        status: document.getElementById('prodStatus').value
+        details: document.getElementById('prodDetails').value.trim(),
+        image_url: document.getElementById('prodImageData').value,
+        
+        storage: document.getElementById('prodStorage').value,
+        barcode: document.getElementById('prodBarcode').value,
+        substitute_allowed: document.getElementById('flagSubstitute').checked,
+        schedule_drug: document.getElementById('flagSchedule').checked,
+        returnable: document.getElementById('flagReturnable').checked,
+        restricted_drug: document.getElementById('flagRestricted').checked,
+        anti_tb: document.getElementById('flagAntiTB').checked,
+        corona_monitor: document.getElementById('flagCorona').checked,
+        self_barcode: document.getElementById('flagSelfBarcode').checked,
+        prescription_required: document.getElementById('flagPrescription').checked,
+        
+        supplier1: document.getElementById('prodSupplier1').value,
+        supplier2: document.getElementById('prodSupplier2').value,
+        supplier3: document.getElementById('prodSupplier3').value
       };
 
-      if (editId) {
-        App.update('products', editId, productData);
-        Utils.showToast('Product updated successfully', 'success');
+      const resp = await App.apiSaveProduct(productData, editId);
+      if (resp.success) {
+        Utils.showToast('Product saved successfully!', 'success');
+        bootstrap.Modal.getInstance(document.getElementById('productModal')).hide();
+        loadProductsTable();
       } else {
-        productData.id = Utils.generateId();
-        productData.is_hidden = false;
-        productData.stock_qty = 0;
-        productData.created_at = new Date().toISOString();
-        App.add('products', productData);
-        Utils.showToast('Product added! Now add stock through the Batch tab.', 'success');
+        Utils.showToast('Error saving product', 'error');
       }
-
-      bootstrap.Modal.getInstance(document.getElementById('productModal')).hide();
-      loadProductsTable();
     }
 
     // --- Category change auto-sets GST ---
@@ -723,14 +827,15 @@
       loadProductsTable();
     }
 
-    function deleteProduct(id) {
+    async function deleteProduct(id) {
       if (confirm('Are you sure you want to permanently delete this product and all its batches?')) {
-        // Delete associated batches
-        const batches = App.getProductBatches(id);
-        batches.forEach(b => App.delete('product_batches', b.id));
-        App.delete('products', id);
-        Utils.showToast('Product deleted', 'success');
-        loadProductsTable();
+        const resp = await App.apiDeleteProduct(id);
+        if (resp.success) {
+          Utils.showToast('Product deleted', 'success');
+          loadProductsTable();
+        } else {
+          Utils.showToast('Failed to delete', 'error');
+        }
       }
     }
 

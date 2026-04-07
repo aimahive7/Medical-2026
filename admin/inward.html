@@ -379,6 +379,7 @@
   <script>
     let rowCounter = 0;
     let editId = null;
+    let allProductsCache = [];
 
     document.addEventListener('DOMContentLoaded', async () => {
       Auth.init();
@@ -386,6 +387,8 @@
 
       editId = Utils.getUrlParam('id');
       loadAgencies();
+      
+      allProductsCache = await App.apiGetProducts();
 
       if (editId) {
         setupEditMode();
@@ -447,8 +450,11 @@
       tr.id = `row-${rowCounter}`;
       tr.innerHTML = `
         <td class="text-center small text-muted pt-3">${rowCounter}</td>
-        <td><input type="text" class="form-control-custom" placeholder="Product name" list="prodList-${rowCounter}"><datalist id="prodList-${rowCounter}">${getProductDatalist()}</datalist></td>
-        <td><input type="text" class="form-control-custom" id="batch-${rowCounter}" placeholder="Batch"></td>
+        <td><input type="text" class="form-control-custom" placeholder="Product name" list="prodList-${rowCounter}" onchange="autoFillProduct(${rowCounter}, this.value)"><datalist id="prodList-${rowCounter}">${getProductDatalist()}</datalist></td>
+        <td>
+          <input type="text" class="form-control-custom" id="batch-${rowCounter}" placeholder="Batch" list="batchList-${rowCounter}" onchange="autoFillBatch(${rowCounter})">
+          <datalist id="batchList-${rowCounter}"></datalist>
+        </td>
         <td><input type="month" class="form-control-custom" id="expiry-${rowCounter}"></td>
         <td><input type="number" class="form-control-custom" id="qty-${rowCounter}" min="0" onkeypress="return event.charCode >= 48 && event.charCode <= 57" placeholder="0" oninput="calcRowAmount(${rowCounter})"></td>
         <td><input type="number" class="form-control-custom" id="free-${rowCounter}" min="0" onkeypress="return event.charCode >= 48 && event.charCode <= 57" value="0"></td>
@@ -469,7 +475,52 @@
     }
 
     function getProductDatalist() {
-      return App.getAll('products').map(p => `<option value="${Utils.sanitize(p.name)}">`).join('');
+      return allProductsCache.map(p => `<option value="${Utils.sanitize(p.name)}">`).join('');
+    }
+
+    async function autoFillProduct(id, name) {
+      if(!name) return;
+      const p = allProductsCache.find(x => x.name.toLowerCase() === name.toLowerCase().trim());
+      if (p) {
+        document.getElementById(`mrp-${id}`).value = p.mrp || 0;
+        document.getElementById(`gst-${id}`).value = p.gst_percent || 5;
+        document.getElementById(`row-${id}`).dataset.productId = p.id;
+        
+        // Fetch batches
+        const batches = await App.apiGetProductBatches(p.id);
+        const datalist = document.getElementById(`batchList-${id}`);
+        datalist.innerHTML = batches.map(b => `<option value="${Utils.sanitize(b.batch_number)}">`).join('');
+        document.getElementById(`row-${id}`).dataset.batches = JSON.stringify(batches);
+      }
+    }
+
+    function autoFillBatch(id) {
+      const batchInput = document.getElementById(`batch-${id}`);
+      const val = batchInput.value.trim().toLowerCase();
+      const row = document.getElementById(`row-${id}`);
+      const batchesStr = row.dataset.batches;
+      if (!batchesStr) return;
+      const batches = JSON.parse(batchesStr);
+      
+      const match = batches.find(b => b.batch_number.toLowerCase() === val);
+      const expiryField = document.getElementById(`expiry-${id}`);
+      const mrpField = document.getElementById(`mrp-${id}`);
+      const rateField = document.getElementById(`rate-${id}`);
+      
+      if (match) {
+        expiryField.value = match.expiry_date;
+        mrpField.value = match.mrp;
+        rateField.value = match.ptr_rate;
+        // Optionally lock them
+        expiryField.setAttribute('readonly', 'true');
+        mrpField.setAttribute('readonly', 'true');
+        rateField.setAttribute('readonly', 'true');
+      } else {
+        expiryField.removeAttribute('readonly');
+        mrpField.removeAttribute('readonly');
+        rateField.removeAttribute('readonly');
+      }
+      calcRowAmount(id);
     }
 
     function removeRow(id) {
@@ -550,20 +601,34 @@
       document.getElementById('sumRoundOff').textContent = Utils.formatCurrency(roundOff);
     }
 
-    function saveBill() {
+    async function saveBill() {
       const agencyId = document.getElementById('agencySelect').value;
       const agencyName = document.getElementById('agencySelect').options[document.getElementById('agencySelect').selectedIndex]?.text;
 
       if (!agencyId) { Utils.showToast('Please select an agency', 'error'); return; }
 
+      // Get values from summary pane
+      const invoiceSubtotal = parseFloat(document.getElementById('sumSubtotal').textContent.replace('₹', '').replace(',', '')) || 0;
+      const invoiceRowDiscount = parseFloat(document.getElementById('sumDiscount').textContent.replace('₹', '').replace(',', '')) || 0;
+      const invoiceGst = parseFloat(document.getElementById('sumGST').textContent.replace('₹', '').replace(',', '')) || 0;
+      const invoiceGrandTotal = parseFloat(document.getElementById('sumGrandTotal').textContent.replace('₹', '').replace(',', '')) || 0;
+      const roundOff = parseFloat(document.getElementById('sumRoundOff').textContent.replace('₹', '').replace(',', '')) || 0;
+
       const header = {
+        id: editId || '',
         agency_id: agencyId,
         agency_name: agencyName,
         bill_no: document.getElementById('billNo').value,
         bill_date: document.getElementById('billDate').value,
         payment_mode: document.getElementById('paymentMode').value,
         bill_discount_type: document.getElementById('billDiscType').value,
-        bill_discount_value: parseFloat(document.getElementById('billDiscVal').value) || 0
+        bill_discount_value: parseFloat(document.getElementById('billDiscVal').value) || 0,
+        inward_number: document.getElementById('inwardNoDisplay').textContent || 'INW' + Date.now(),
+        total_subtotal: invoiceSubtotal,
+        total_row_discount: invoiceRowDiscount,
+        total_gst: invoiceGst,
+        grand_total: invoiceGrandTotal,
+        round_off: roundOff
       };
 
       const items = [];
@@ -571,25 +636,64 @@
         const id = row.id.split('-')[1];
         const name = row.querySelector('input[placeholder="Product name"]').value;
         if (!name) return;
+        const productId = row.dataset.productId || '';
+        
+        const qty = parseFloat(document.getElementById(`qty-${id}`).value) || 0;
+        const rate = parseFloat(document.getElementById(`rate-${id}`).value) || 0;
+        const discType = document.getElementById(`discType-${id}`).value;
+        const discVal = parseFloat(document.getElementById(`discVal-${id}`).value) || 0;
+        const gstRate = parseFloat(document.getElementById(`gst-${id}`).value) || 0;
+
+        const subtotal = qty * rate;
+        let discAmt = discType === 'perc' ? (subtotal * discVal / 100) : discVal;
+        const taxable = subtotal - discAmt;
+        const gstAmt = (taxable * gstRate / 100);
+        const total = taxable + gstAmt;
+
         items.push({
+          product_id: productId,
           product_name: name,
           batch: document.getElementById(`batch-${id}`).value,
           expiry: document.getElementById(`expiry-${id}`).value,
-          qty: document.getElementById(`qty-${id}`).value,
-          free: document.getElementById(`free-${id}`).value,
-          mrp: document.getElementById(`mrp-${id}`).value,
-          rate: document.getElementById(`rate-${id}`).value,
-          discount_type: document.getElementById(`discType-${id}`).value,
-          discount_value: document.getElementById(`discVal-${id}`).value,
-          gst: document.getElementById(`gst-${id}`).value
+          qty: qty,
+          free: parseFloat(document.getElementById(`free-${id}`).value) || 0,
+          mrp: parseFloat(document.getElementById(`mrp-${id}`).value) || 0,
+          rate: rate,
+          discount_type: discType,
+          discount_value: discVal,
+          discount_amount: discAmt,
+          gst: gstRate,
+          taxable_amount: taxable,
+          gst_amount: gstAmt,
+          amount: total
         });
       });
 
-      const result = Inward.processBill(header, items, editId);
+      if (items.length === 0) {
+        Utils.showToast('Please add at least one item', 'error'); return;
+      }
+      for(const i of items){
+          if(!i.batch || !i.expiry) {
+              Utils.showToast('Please provide Batch and Expiry for all items', 'error'); return;
+          }
+      }
+
+      const payload = { bill: header, items: items };
+      const btn = document.getElementById('saveBtn');
+      const originalText = btn.innerHTML;
+      btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Saving...';
+      btn.disabled = true;
+
+      const result = await App.apiSubmitInwardBill(payload);
+      
+      btn.innerHTML = originalText;
+      btn.disabled = false;
+
       if (result.success) {
-        showResults(result.bill, result.stockResults);
+        Utils.showToast('Inward Bill Saved Successfully', 'success');
+        setTimeout(() => location.reload(), 1500);
       } else {
-        Utils.showToast(result.errors.join('\n'), 'error');
+        Utils.showToast(result.error || 'Failed to save', 'error');
       }
     }
 

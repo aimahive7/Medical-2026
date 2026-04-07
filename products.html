@@ -167,7 +167,7 @@
       applyFilters();
     });
 
-    function applyFilters() {
+    async function applyFilters() {
       const filters = {
         customerView: true,
         search: document.getElementById('searchInput').value.trim(),
@@ -181,7 +181,7 @@
       if (minPrice) filters.minPrice = parseFloat(minPrice);
       if (maxPrice) filters.maxPrice = parseFloat(maxPrice);
 
-      const allProducts = App.getProducts(filters);
+      const allProducts = await App.apiGetProducts(filters);
       
       // Update results count
       document.getElementById('resultsCount').textContent = `${allProducts.length} product${allProducts.length !== 1 ? 's' : ''} found`;

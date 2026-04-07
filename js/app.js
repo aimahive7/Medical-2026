@@ -27,6 +27,75 @@ const App = {
     console.log('🏥 Shobha Medical Stores — App initialized (v2)');
   },
 
+  /* ---------- API CLIENT METHODS ---------- */
+  
+  async apiGetProducts(filters = {}) {
+    try {
+      const qs = new URLSearchParams(filters).toString();
+      const res = await fetch(`http://localhost:3000/api/products?${qs}`);
+      const data = await res.json();
+      return data.success ? data.products : [];
+    } catch (e) {
+      console.error('Error fetching products via API', e);
+      return [];
+    }
+  },
+
+  async apiSaveProduct(product, editId = null) {
+    try {
+      const url = editId ? `http://localhost:3000/api/products/${editId}` : `http://localhost:3000/api/products`;
+      const method = editId ? 'PUT' : 'POST';
+      const res = await fetch(url, {
+        method,
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(product)
+      });
+      return await res.json();
+    } catch(e) {
+      console.error('Error saving product', e);
+      return { success: false };
+    }
+  },
+
+  async apiGetProduct(id) {
+    try {
+      const res = await fetch(`http://localhost:3000/api/products/${id}`);
+      const data = await res.json();
+      return data.success ? data : null;
+    } catch(e) {
+      console.error(e);
+      return null;
+    }
+  },
+
+  async apiGetProductBatches(id) {
+    const data = await this.apiGetProduct(id);
+    return data && data.batches ? data.batches : [];
+  },
+
+  async apiSubmitInwardBill(payload) {
+    try {
+      const res = await fetch(`http://localhost:3000/api/inward`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      });
+      return await res.json();
+    } catch (e) {
+      console.error('Error submitting inward bill', e);
+      return { success: false, error: e.message };
+    }
+  },
+
+  async apiDeleteProduct(id) {
+    try {
+      const res = await fetch(`http://localhost:3000/api/products/${id}`, { method: 'DELETE' });
+      return await res.json();
+    } catch (e) {
+      return { success: false };
+    }
+  },
+
   /* ---------- DATA STORE (localStorage CRUD) ---------- */
 
   /**
@@ -760,8 +829,8 @@ const App = {
     const stock = Utils.getStockStatus(totalStock, this.getSettings().low_stock_threshold || 10);
     const icon = Utils.getCategoryIcon(product.category);
     const isOutOfStock = totalStock <= 0;
-    const mrp = product.mrp || product.price;
-    const gstRate = product.gst_rate || Utils.getDefaultGSTRate(product.category);
+    const mrp = parseFloat(product.mrp) || parseFloat(product.price) || 0;
+    const gstRate = product.gst_percent || product.gst_rate || Utils.getDefaultGSTRate(product.category);
 
     return `
       <div class="col-lg-3 col-md-4 col-sm-6 mb-4 fade-in">
@@ -776,12 +845,15 @@ const App = {
             </button>
           </div>
           <div class="product-body">
-            <span class="product-category">${Utils.sanitize(product.category)}</span>
-            <h5 class="product-name">
+            <div class="d-flex justify-content-between">
+              <span class="product-category">${Utils.sanitize(product.category)}</span>
+              ${product.prescription_required ? `<span class="badge bg-danger text-white px-2 py-1" style="font-size:0.6rem;"><i class="fas fa-prescription-bottle-alt me-1"></i>Rx Req</span>` : ''}
+            </div>
+            <h5 class="product-name mt-1">
               <a href="product-detail.html?id=${product.id}" class="text-decoration-none text-dark">${Utils.sanitize(product.name)}</a>
             </h5>
             <p class="product-desc">${Utils.sanitize(product.description)}</p>
-            ${product.dosage ? `<small class="text-muted"><i class="fas fa-prescription me-1"></i>${Utils.sanitize(product.dosage)}</small>` : ''}
+            ${product.dosage ? `<small class="text-muted"><i class="fas fa-pills me-1"></i>${Utils.sanitize(product.dosage)}</small>` : ''}
             ${product.manufacturer ? `<small class="text-muted d-block"><i class="fas fa-industry me-1"></i>${Utils.sanitize(product.manufacturer)}</small>` : ''}
             <div class="product-footer">
               <div>

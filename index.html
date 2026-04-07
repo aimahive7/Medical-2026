@@ -338,11 +338,11 @@
     });
 
     // Load featured products
-    function loadFeaturedProducts(category) {
+    async function loadFeaturedProducts(category) {
       const filters = { customerView: true };
       if (category && category !== 'all') filters.category = category;
       
-      let products = App.getProducts(filters);
+      let products = await App.apiGetProducts(filters);
       // Show max 8 on home
       products = products.slice(0, 8);
       

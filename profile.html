@@ -240,8 +240,7 @@
       if (result.success) {
         Utils.showToast(result.message, 'success');
         setTimeout(() => {
-          showProfile();
-          document.getElementById('navbar-container').innerHTML = App.getNavbarHTML('profile');
+          window.location.href = 'index.html';
         }, 500);
       } else {
         Utils.showToast(result.message, 'error');
@@ -268,8 +267,7 @@
       if (result.success) {
         Utils.showToast(result.message, 'success');
         setTimeout(() => {
-          showProfile();
-          document.getElementById('navbar-container').innerHTML = App.getNavbarHTML('profile');
+          window.location.href = 'index.html';
         }, 500);
       } else {
         Utils.showToast(result.message, 'error');
